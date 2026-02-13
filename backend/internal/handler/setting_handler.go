@@ -52,6 +52,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		PurchaseSubscriptionURL:     settings.PurchaseSubscriptionURL,
 		LinuxDoOAuthEnabled:         settings.LinuxDoOAuthEnabled,
 		SoraClientEnabled:           settings.SoraClientEnabled,
+		LDAPEnabled:                 settings.LDAPEnabled,
 		Version:                     h.version,
 	})
 }
