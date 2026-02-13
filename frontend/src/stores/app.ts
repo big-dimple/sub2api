@@ -328,6 +328,7 @@ export const useAppStore = defineStore('app', () => {
         purchase_subscription_enabled: false,
         purchase_subscription_url: '',
         linuxdo_oauth_enabled: false,
+        ldap_enabled: false,
         version: siteVersion.value
       }
     }

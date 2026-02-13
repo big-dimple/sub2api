@@ -91,6 +91,7 @@ export interface PublicSettings {
   purchase_subscription_enabled: boolean
   purchase_subscription_url: string
   linuxdo_oauth_enabled: boolean
+  ldap_enabled: boolean
   version: string
 }
 

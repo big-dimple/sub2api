@@ -569,6 +569,150 @@
           </div>
         </div>
 
+        <!-- LDAP / AD Settings -->
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">LDAP / AD 身份接入</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              启用后仅保留本地管理员账号，普通用户通过域账号登录并自动同步。
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">启用 LDAP 登录</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  登录页将支持“域账号/邮箱 + 密码”认证
+                </p>
+              </div>
+              <Toggle v-model="form.ldap_enabled" />
+            </div>
+
+            <div v-if="form.ldap_enabled" class="space-y-5 border-t border-gray-100 pt-4 dark:border-dark-700">
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">LDAP Host</label>
+                  <input v-model="form.ldap_host" type="text" class="input font-mono text-sm" placeholder="ad.example.com" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">LDAP Port</label>
+                  <input v-model.number="form.ldap_port" type="number" min="1" max="65535" class="input font-mono text-sm" placeholder="389" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
+                  <span class="text-sm text-gray-700 dark:text-gray-300">Use TLS (LDAPS)</span>
+                  <Toggle v-model="form.ldap_use_tls" />
+                </div>
+                <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
+                  <span class="text-sm text-gray-700 dark:text-gray-300">StartTLS</span>
+                  <Toggle v-model="form.ldap_start_tls" />
+                </div>
+                <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
+                  <span class="text-sm text-gray-700 dark:text-gray-300">Skip TLS Verify</span>
+                  <Toggle v-model="form.ldap_insecure_skip_verify" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Bind DN</label>
+                  <input v-model="form.ldap_bind_dn" type="text" class="input font-mono text-sm" placeholder="cn=svc,ou=service,dc=example,dc=com" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Bind Password</label>
+                  <input
+                    v-model="form.ldap_bind_password"
+                    type="password"
+                    class="input font-mono text-sm"
+                    :placeholder="form.ldap_bind_password_configured ? '已配置（留空不修改）' : '请输入 Bind 密码'"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">User Base DN</label>
+                  <input v-model="form.ldap_user_base_dn" type="text" class="input font-mono text-sm" placeholder="ou=users,dc=example,dc=com" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">User Filter</label>
+                  <input v-model="form.ldap_user_filter" type="text" class="input font-mono text-sm" placeholder="(&(objectClass=user)({login_attr}={login}))" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Login Attr</label>
+                  <input v-model="form.ldap_login_attr" type="text" class="input font-mono text-sm" placeholder="sAMAccountName" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">UID Attr</label>
+                  <input v-model="form.ldap_uid_attr" type="text" class="input font-mono text-sm" placeholder="uid" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Group Attr</label>
+                  <input v-model="form.ldap_group_attr" type="text" class="input font-mono text-sm" placeholder="memberOf" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Email Attr</label>
+                  <input v-model="form.ldap_email_attr" type="text" class="input font-mono text-sm" placeholder="mail" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Display Name Attr</label>
+                  <input v-model="form.ldap_display_name_attr" type="text" class="input font-mono text-sm" placeholder="displayName" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Department Attr</label>
+                  <input v-model="form.ldap_department_attr" type="text" class="input font-mono text-sm" placeholder="department" />
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">允许登录组 DN（每行一个）</label>
+                <textarea
+                  v-model="form.ldap_allowed_group_dns_text"
+                  rows="4"
+                  class="input font-mono text-sm"
+                  placeholder="cn=sub2api-users,ou=groups,dc=example,dc=com"
+                ></textarea>
+              </div>
+
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">组映射规则（JSON）</label>
+                <textarea
+                  v-model="form.ldap_group_mappings_text"
+                  rows="8"
+                  class="input font-mono text-sm"
+                  placeholder='[{\"ldap_group_dn\":\"cn=AI-Researchers,ou=groups,dc=example,dc=com\",\"target_role\":\"user\",\"balance\":500,\"concurrency\":20,\"priority\":100}]'
+                ></textarea>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
+                  <span class="text-sm text-gray-700 dark:text-gray-300">启用周期同步</span>
+                  <Toggle v-model="form.ldap_sync_enabled" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">同步周期（分钟）</label>
+                  <input
+                    v-model.number="form.ldap_sync_interval_minutes"
+                    type="number"
+                    min="5"
+                    max="10080"
+                    class="input font-mono text-sm"
+                    placeholder="1440"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Default Settings -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -1123,6 +1267,9 @@ type SettingsForm = SystemSettings & {
   smtp_password: string
   turnstile_secret_key: string
   linuxdo_connect_client_secret: string
+  ldap_bind_password: string
+  ldap_allowed_group_dns_text: string
+  ldap_group_mappings_text: string
 }
 
 const form = reactive<SettingsForm>({
@@ -1164,6 +1311,30 @@ const form = reactive<SettingsForm>({
   linuxdo_connect_client_secret: '',
   linuxdo_connect_client_secret_configured: false,
   linuxdo_connect_redirect_url: '',
+  // LDAP settings
+  ldap_enabled: false,
+  ldap_host: '',
+  ldap_port: 389,
+  ldap_use_tls: false,
+  ldap_start_tls: false,
+  ldap_insecure_skip_verify: false,
+  ldap_bind_dn: '',
+  ldap_bind_password: '',
+  ldap_bind_password_configured: false,
+  ldap_user_base_dn: '',
+  ldap_user_filter: '({login_attr}={login})',
+  ldap_login_attr: 'mail',
+  ldap_uid_attr: 'uid',
+  ldap_email_attr: 'mail',
+  ldap_display_name_attr: 'displayName',
+  ldap_department_attr: 'department',
+  ldap_group_attr: 'memberOf',
+  ldap_allowed_group_dns: [],
+  ldap_group_mappings: [],
+  ldap_sync_enabled: true,
+  ldap_sync_interval_minutes: 1440,
+  ldap_allowed_group_dns_text: '',
+  ldap_group_mappings_text: '[]',
   // Model fallback
   enable_model_fallback: false,
   fallback_model_anthropic: 'claude-3-5-sonnet-20241022',
@@ -1242,6 +1413,9 @@ async function loadSettings() {
     form.smtp_password = ''
     form.turnstile_secret_key = ''
     form.linuxdo_connect_client_secret = ''
+    form.ldap_bind_password = ''
+    form.ldap_allowed_group_dns_text = (settings.ldap_allowed_group_dns || []).join('\\n')
+    form.ldap_group_mappings_text = JSON.stringify(settings.ldap_group_mappings || [], null, 2)
   } catch (error: any) {
     appStore.showError(
       t('admin.settings.failedToLoad') + ': ' + (error.message || t('common.unknownError'))
@@ -1254,6 +1428,23 @@ async function loadSettings() {
 async function saveSettings() {
   saving.value = true
   try {
+    let parsedMappings: any[] = []
+    try {
+      parsedMappings = JSON.parse(form.ldap_group_mappings_text || '[]')
+      if (!Array.isArray(parsedMappings)) {
+        throw new Error('LDAP group mappings must be an array')
+      }
+    } catch (parseErr: any) {
+      appStore.showError(`LDAP 组映射 JSON 格式错误: ${parseErr.message || 'invalid json'}`)
+      saving.value = false
+      return
+    }
+
+    const parsedAllowedDNs = (form.ldap_allowed_group_dns_text || '')
+      .split('\\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
+
     const payload: UpdateSettingsRequest = {
       registration_enabled: form.registration_enabled,
       email_verify_enabled: form.email_verify_enabled,
@@ -1287,6 +1478,26 @@ async function saveSettings() {
       linuxdo_connect_client_id: form.linuxdo_connect_client_id,
       linuxdo_connect_client_secret: form.linuxdo_connect_client_secret || undefined,
       linuxdo_connect_redirect_url: form.linuxdo_connect_redirect_url,
+      ldap_enabled: form.ldap_enabled,
+      ldap_host: form.ldap_host,
+      ldap_port: form.ldap_port,
+      ldap_use_tls: form.ldap_use_tls,
+      ldap_start_tls: form.ldap_start_tls,
+      ldap_insecure_skip_verify: form.ldap_insecure_skip_verify,
+      ldap_bind_dn: form.ldap_bind_dn,
+      ldap_bind_password: form.ldap_bind_password || undefined,
+      ldap_user_base_dn: form.ldap_user_base_dn,
+      ldap_user_filter: form.ldap_user_filter,
+      ldap_login_attr: form.ldap_login_attr,
+      ldap_uid_attr: form.ldap_uid_attr,
+      ldap_email_attr: form.ldap_email_attr,
+      ldap_display_name_attr: form.ldap_display_name_attr,
+      ldap_department_attr: form.ldap_department_attr,
+      ldap_group_attr: form.ldap_group_attr,
+      ldap_allowed_group_dns: parsedAllowedDNs,
+      ldap_group_mappings: parsedMappings,
+      ldap_sync_enabled: form.ldap_sync_enabled,
+      ldap_sync_interval_minutes: form.ldap_sync_interval_minutes,
       enable_model_fallback: form.enable_model_fallback,
       fallback_model_anthropic: form.fallback_model_anthropic,
       fallback_model_openai: form.fallback_model_openai,
@@ -1300,6 +1511,9 @@ async function saveSettings() {
     form.smtp_password = ''
     form.turnstile_secret_key = ''
     form.linuxdo_connect_client_secret = ''
+    form.ldap_bind_password = ''
+    form.ldap_allowed_group_dns_text = (updated.ldap_allowed_group_dns || []).join('\\n')
+    form.ldap_group_mappings_text = JSON.stringify(updated.ldap_group_mappings || [], null, 2)
     // Refresh cached public settings so sidebar/header update immediately
     await appStore.fetchPublicSettings(true)
     appStore.showSuccess(t('admin.settings.settingsSaved'))

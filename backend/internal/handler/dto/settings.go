@@ -1,5 +1,13 @@
 package dto
 
+type LDAPGroupMapping struct {
+	LDAPGroupDN string  `json:"ldap_group_dn"`
+	TargetRole  string  `json:"target_role"`
+	Balance     float64 `json:"balance"`
+	Concurrency int     `json:"concurrency"`
+	Priority    int     `json:"priority"`
+}
+
 // SystemSettings represents the admin settings API response payload.
 type SystemSettings struct {
 	RegistrationEnabled         bool `json:"registration_enabled"`
@@ -26,6 +34,27 @@ type SystemSettings struct {
 	LinuxDoConnectClientID               string `json:"linuxdo_connect_client_id"`
 	LinuxDoConnectClientSecretConfigured bool   `json:"linuxdo_connect_client_secret_configured"`
 	LinuxDoConnectRedirectURL            string `json:"linuxdo_connect_redirect_url"`
+
+	LDAPEnabled                bool               `json:"ldap_enabled"`
+	LDAPHost                   string             `json:"ldap_host"`
+	LDAPPort                   int                `json:"ldap_port"`
+	LDAPUseTLS                 bool               `json:"ldap_use_tls"`
+	LDAPStartTLS               bool               `json:"ldap_start_tls"`
+	LDAPInsecureSkipVerify     bool               `json:"ldap_insecure_skip_verify"`
+	LDAPBindDN                 string             `json:"ldap_bind_dn"`
+	LDAPBindPasswordConfigured bool               `json:"ldap_bind_password_configured"`
+	LDAPUserBaseDN             string             `json:"ldap_user_base_dn"`
+	LDAPUserFilter             string             `json:"ldap_user_filter"`
+	LDAPLoginAttr              string             `json:"ldap_login_attr"`
+	LDAPUIDAttr                string             `json:"ldap_uid_attr"`
+	LDAPEmailAttr              string             `json:"ldap_email_attr"`
+	LDAPDisplayNameAttr        string             `json:"ldap_display_name_attr"`
+	LDAPDepartmentAttr         string             `json:"ldap_department_attr"`
+	LDAPGroupAttr              string             `json:"ldap_group_attr"`
+	LDAPAllowedGroupDNs        []string           `json:"ldap_allowed_group_dns"`
+	LDAPGroupMappings          []LDAPGroupMapping `json:"ldap_group_mappings"`
+	LDAPSyncEnabled            bool               `json:"ldap_sync_enabled"`
+	LDAPSyncIntervalMinutes    int                `json:"ldap_sync_interval_minutes"`
 
 	SiteName                    string `json:"site_name"`
 	SiteLogo                    string `json:"site_logo"`
@@ -79,6 +108,7 @@ type PublicSettings struct {
 	PurchaseSubscriptionEnabled bool   `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL     string `json:"purchase_subscription_url"`
 	LinuxDoOAuthEnabled         bool   `json:"linuxdo_oauth_enabled"`
+	LDAPEnabled                 bool   `json:"ldap_enabled"`
 	Version                     string `json:"version"`
 }
 
