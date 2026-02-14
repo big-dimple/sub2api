@@ -126,7 +126,7 @@ func (s *AuthService) authenticateLDAPUser(ctx context.Context, cfg *LDAPConfig,
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	entry, err := s.searchLDAPUserForLogin(ctx, conn, cfg, identifier)
 	if err != nil {
@@ -180,14 +180,14 @@ func (s *AuthService) openLDAPConnection(cfg *LDAPConfig) (*ldap.Conn, error) {
 
 	if cfg.StartTLS {
 		if err := conn.StartTLS(tlsConfig.ToTLSConfig()); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return nil, err
 		}
 	}
 
 	if strings.TrimSpace(cfg.BindDN) != "" {
 		if err := conn.Bind(cfg.BindDN, cfg.BindPassword); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			if isLDAPInvalidCredentials(err) {
 				return nil, ErrInvalidCredentials
 			}
@@ -429,7 +429,7 @@ func (s *AuthService) SyncLDAPUsersNow(ctx context.Context) (*LDAPSyncResult, er
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	targets, err := s.ldapUserRepo.ListActiveLDAPSyncTargets(ctx)
 	if err != nil {
@@ -532,7 +532,7 @@ func (s *AuthService) TestLDAPConnection(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	return nil
 }
 
