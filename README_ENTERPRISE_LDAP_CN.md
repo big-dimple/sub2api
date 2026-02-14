@@ -65,3 +65,73 @@
 - 先灰度 10-20 人（技术团队）一周，确认无误后扩到 80-100 人目标人群。
 - 同步周期先设为 `1440` 分钟（每日），稳定后按需要降到 `60-240` 分钟。
 - 首月只做“可用 + 可控”，避免同时引入复杂审批流或白名单特例。
+
+## 8. 首次配置 SOP（给 IT 值守）
+1. 用本地 `admin` 登录后台，进入 `系统设置 -> LDAP / AD 身份接入`。
+2. 按顺序配置：连接参数 -> 用户检索 -> 允许组/组映射 -> 同步策略。
+3. 先用测试域账号验证登录，确认能自动建档并拿到正确权限。
+4. 开启周期同步，先设 `1440` 分钟（每日一次）。
+5. 关闭普通注册入口，仅保留本地 `admin` + LDAP 登录模式。
+
+验收最小闭环：
+- 新员工首次登录可自动开通。
+- 被禁用/离职账号在次日同步后无法登录。
+- 本地 `admin` 始终可应急登录。
+
+## 9. 部署依赖与近期踩坑（务必纳入运维基线）
+### 9.1 最小依赖
+- 运行环境：Docker Engine、PostgreSQL 15+、Redis 7+。
+- 常用工具：`openssl`、`curl`、`git`、`ca-certificates`（企业证书场景）。
+- 若用 Compose：需安装 `docker compose` 插件（部分环境默认没有）。
+
+Ubuntu 参考：
+```bash
+apt-get update
+apt-get install -y docker.io docker-compose-plugin openssl curl git ca-certificates
+```
+
+### 9.2 已验证坑点（2026-02）
+- `TOTP_ENCRYPTION_KEY` 必须是 64 位十六进制：`openssl rand -hex 32`。
+- 部分环境没有 `docker compose`，需单容器 `docker run` 或安装 compose 插件。
+- 目录权限不对会导致容器启动失败，参考：
+  - `data` -> `1000:1000`
+  - `postgres_data` -> `70:70`
+  - `redis_data` -> `999:1000`
+- LDAP 测试期可临时跳过证书校验；生产必须关闭该选项并配置可信 CA。
+
+## 10. Fork 跟进官方更新策略（避免“自研孤岛”）
+### 10.1 分支与远程约定
+- `origin`：公司 fork（当前生产来源）。
+- `upstream`：官方仓库 `Wei-Shaw/sub2api`。
+- 分支建议：
+  - `main`：公司稳定主线（可发布）。
+  - `feat/*`：功能开发分支。
+  - `sync/upstream-YYYYMMDD`：每次官方同步分支。
+
+### 10.2 推荐同步节奏
+- 常规：每月一次同步官方 `main`。
+- 紧急：官方安全修复发布后 24 小时内同步评估。
+
+### 10.3 IT 可执行命令（标准流程）
+```bash
+# 仅首次执行
+git remote add upstream https://github.com/Wei-Shaw/sub2api.git
+
+# 每次同步
+git fetch upstream --tags
+git checkout -b sync/upstream-$(date +%Y%m%d) origin/main
+git merge --no-ff upstream/main -m "merge: sync upstream/main"
+
+# 冲突解决后做最小回归
+make test
+pnpm --dir frontend run build
+
+# 回灌主线
+git checkout main
+git merge --no-ff sync/upstream-$(date +%Y%m%d)
+git push origin main
+```
+
+### 10.4 是否提交到官方仓库
+- 可以提交，但只提交“通用能力”（如 LDAP Bug 修复、通用可配置项）。
+- 企业特有策略（本地 admin 保留、组织配额规则、内部文档）留在 fork，不直接上游化。

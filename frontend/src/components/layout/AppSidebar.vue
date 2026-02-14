@@ -41,6 +41,8 @@
                 ? 'sidebar-channel-manage'
                 : item.path === '/admin/groups'
                   ? 'sidebar-group-manage'
+                  : item.path === '/admin/settings'
+                    ? 'sidebar-settings'
                   : item.path === '/admin/redeem'
                     ? 'sidebar-wallet'
                     : undefined
@@ -529,6 +531,7 @@ function handleMenuItemClick(itemPath: string) {
   const pathToSelector: Record<string, string> = {
     '/admin/groups': '#sidebar-group-manage',
     '/admin/accounts': '#sidebar-channel-manage',
+    '/admin/settings': '#sidebar-settings',
     '/keys': '[data-tour="sidebar-my-keys"]'
   }
 

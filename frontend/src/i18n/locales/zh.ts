@@ -3723,6 +3723,16 @@ export default {
         nextBtn: '开始配置 🚀',
         prevBtn: '跳过'
       },
+      ldapEntry: {
+        title: '🏢 企业接入：先配置 LDAP',
+        description:
+          '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">如果您是企业部署场景，建议先完成 LDAP/AD 接入，再创建分组和账号池。</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;"><b>📌 价值：</b><ul style="margin: 8px 0 0 16px;"><li>员工使用域账号直接登录</li><li>离职账号可自动禁用</li><li>避免手工注册与权限漂移</li></ul></div><p style="margin-top: 12px; color: #10b981; font-weight: 600;">👉 点击左侧“系统设置”</p></div>'
+      },
+      ldapPanel: {
+        title: '🧭 LDAP 新手配置区',
+        description:
+          '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">在系统设置里按“连接参数 → 用户检索 → 组映射 → 同步策略”顺序填写即可。</p><p style="padding: 8px 12px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>⚠️ 关键项：</b>Host、Bind DN、Bind Password、User Base DN、Login Attr、UID Attr、允许组 DN。</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>💡 建议：</b>先用测试账号登录验证，再切换到全员使用。</p></div>'
+      },
       groupManage: {
         title: '📦 第一步：分组管理',
         description:

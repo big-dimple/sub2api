@@ -570,7 +570,7 @@
         </div>
 
         <!-- LDAP / AD Settings -->
-        <div class="card">
+        <div class="card" data-tour="settings-ldap-card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">LDAP / AD 身份接入</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -578,6 +578,14 @@
             </p>
           </div>
           <div class="space-y-5 p-6">
+            <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-200">
+              <p class="font-medium">新手配置顺序（建议）</p>
+              <p class="mt-1">1) 连接参数（Host/Port/TLS/Bind）</p>
+              <p>2) 用户检索（Base DN/Filter/Login Attr/UID Attr）</p>
+              <p>3) 授权策略（允许组 DN、组映射）</p>
+              <p>4) 同步策略（启用同步、同步周期）</p>
+            </div>
+
             <div class="flex items-center justify-between">
               <div>
                 <label class="font-medium text-gray-900 dark:text-white">启用 LDAP 登录</label>
@@ -591,37 +599,39 @@
             <div v-if="form.ldap_enabled" class="space-y-5 border-t border-gray-100 pt-4 dark:border-dark-700">
               <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">LDAP Host</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">LDAP 服务器地址（Host）</label>
                   <input v-model="form.ldap_host" type="text" class="input font-mono text-sm" placeholder="ad.example.com" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">示例：`ad.company.local` 或域控 IP。</p>
                 </div>
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">LDAP Port</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">端口（Port）</label>
                   <input v-model.number="form.ldap_port" type="number" min="1" max="65535" class="input font-mono text-sm" placeholder="389" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">常见：`389`（LDAP/StartTLS）或 `636`（LDAPS）。</p>
                 </div>
               </div>
 
               <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
-                  <span class="text-sm text-gray-700 dark:text-gray-300">Use TLS (LDAPS)</span>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">使用 LDAPS（TLS）</span>
                   <Toggle v-model="form.ldap_use_tls" />
                 </div>
                 <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
-                  <span class="text-sm text-gray-700 dark:text-gray-300">StartTLS</span>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">启用 StartTLS</span>
                   <Toggle v-model="form.ldap_start_tls" />
                 </div>
                 <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
-                  <span class="text-sm text-gray-700 dark:text-gray-300">Skip TLS Verify</span>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">跳过 TLS 证书校验（仅测试）</span>
                   <Toggle v-model="form.ldap_insecure_skip_verify" />
                 </div>
               </div>
 
               <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Bind DN</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">服务账号 DN（Bind DN）</label>
                   <input v-model="form.ldap_bind_dn" type="text" class="input font-mono text-sm" placeholder="cn=svc,ou=service,dc=example,dc=com" />
                 </div>
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Bind Password</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">服务账号密码（Bind Password）</label>
                   <input
                     v-model="form.ldap_bind_password"
                     type="password"
@@ -633,41 +643,42 @@
 
               <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">User Base DN</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">用户搜索根 DN（User Base DN）</label>
                   <input v-model="form.ldap_user_base_dn" type="text" class="input font-mono text-sm" placeholder="ou=users,dc=example,dc=com" />
                 </div>
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">User Filter</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">用户过滤条件（User Filter）</label>
                   <input v-model="form.ldap_user_filter" type="text" class="input font-mono text-sm" placeholder="(&(objectClass=user)({login_attr}={login}))" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">支持占位符：`{login_attr}`、`{login}`。</p>
                 </div>
               </div>
 
               <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Login Attr</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">登录属性（Login Attr）</label>
                   <input v-model="form.ldap_login_attr" type="text" class="input font-mono text-sm" placeholder="sAMAccountName" />
                 </div>
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">UID Attr</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">唯一 ID 属性（UID Attr）</label>
                   <input v-model="form.ldap_uid_attr" type="text" class="input font-mono text-sm" placeholder="uid" />
                 </div>
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Group Attr</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">组属性（Group Attr）</label>
                   <input v-model="form.ldap_group_attr" type="text" class="input font-mono text-sm" placeholder="memberOf" />
                 </div>
               </div>
 
               <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Email Attr</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">邮箱属性（Email Attr）</label>
                   <input v-model="form.ldap_email_attr" type="text" class="input font-mono text-sm" placeholder="mail" />
                 </div>
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Display Name Attr</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">显示名属性（Display Name Attr）</label>
                   <input v-model="form.ldap_display_name_attr" type="text" class="input font-mono text-sm" placeholder="displayName" />
                 </div>
                 <div>
-                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Department Attr</label>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">部门属性（Department Attr）</label>
                   <input v-model="form.ldap_department_attr" type="text" class="input font-mono text-sm" placeholder="department" />
                 </div>
               </div>
@@ -680,6 +691,7 @@
                   class="input font-mono text-sm"
                   placeholder="cn=sub2api-users,ou=groups,dc=example,dc=com"
                 ></textarea>
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">留空表示不按组限制登录；建议生产环境至少配置一个允许组。</p>
               </div>
 
               <div>
@@ -690,6 +702,7 @@
                   class="input font-mono text-sm"
                   placeholder='[{\"ldap_group_dn\":\"cn=AI-Researchers,ou=groups,dc=example,dc=com\",\"target_role\":\"user\",\"balance\":500,\"concurrency\":20,\"priority\":100}]'
                 ></textarea>
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">当用户命中多个组时按 `priority` 高者生效；本系统仅允许本地 admin，不会通过 LDAP 提升为管理员。</p>
               </div>
 
               <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -707,6 +720,7 @@
                     class="input font-mono text-sm"
                     placeholder="1440"
                   />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">建议先按 `1440`（每日）运行，稳定后再缩短周期。</p>
                 </div>
               </div>
             </div>

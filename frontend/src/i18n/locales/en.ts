@@ -3549,6 +3549,14 @@ export default {
         nextBtn: 'Start Setup 🚀',
         prevBtn: 'Skip'
       },
+      ldapEntry: {
+        title: '🏢 Enterprise First: Configure LDAP',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">For enterprise deployment, configure LDAP/AD before creating groups and account pools.</p><div style="padding: 8px 12px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px;"><b>📌 Benefits:</b><ul style="margin: 8px 0 0 16px;"><li>Employees sign in with domain credentials</li><li>Departed users can be disabled automatically</li><li>Avoid manual registration and permission drift</li></ul></div><p style="margin-top: 12px; color: #10b981; font-weight: 600;">👉 Click "Settings" in the left sidebar</p></div>'
+      },
+      ldapPanel: {
+        title: '🧭 LDAP Quick Setup Area',
+        description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">Fill this section in order: Connection → User Search → Group Mapping → Sync Policy.</p><p style="padding: 8px 12px; background: #fef3c7; border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>⚠️ Critical fields:</b> Host, Bind DN, Bind Password, User Base DN, Login Attr, UID Attr, Allowed Group DNs.</p><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>💡 Tip:</b> Verify with a test domain account first, then roll out to all users.</p></div>'
+      },
       groupManage: {
         title: '📦 Step 1: Group Management',
         description: '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;"><b>What is a Group?</b></p><p style="margin-bottom: 12px;">Groups are the core concept of Sub2API, like a "service package":</p><ul style="margin-left: 20px; margin-bottom: 12px; font-size: 13px;"><li>🎯 Each group can contain multiple upstream accounts</li><li>💰 Each group has independent billing multiplier</li><li>👥 Can be set as public or exclusive</li></ul><p style="margin-top: 12px; padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>💡 Example:</b> You can create "VIP Premium" (high rate) and "Free Trial" (low rate) groups</p><p style="margin-top: 16px; color: #10b981; font-weight: 600;">👉 Click "Group Management" on the left sidebar</p></div>'
