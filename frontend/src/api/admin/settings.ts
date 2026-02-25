@@ -456,7 +456,17 @@ export const settingsAPI = {
   createSoraS3Profile,
   updateSoraS3Profile,
   deleteSoraS3Profile,
-  setActiveSoraS3Profile
+  setActiveSoraS3Profile,
+  testLDAPConnection: async () => {
+    const { data } = await apiClient.post<{ message: string }>('/admin/settings/ldap/test')
+    return data
+  },
+  syncLDAPUsersNow: async () => {
+    const { data } = await apiClient.post<{ checked: number; disabled: number; updated: number }>(
+      '/admin/settings/ldap/sync'
+    )
+    return data
+  }
 }
 
 export default settingsAPI

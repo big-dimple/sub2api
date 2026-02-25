@@ -571,11 +571,39 @@
 
         <!-- LDAP / AD Settings -->
         <div class="card" data-tour="settings-ldap-card">
-          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">LDAP / AD 身份接入</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              启用后仅保留本地管理员账号，普通用户通过域账号登录并自动同步。
-            </p>
+          <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">LDAP / AD 身份接入</h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                启用后仅保留本地管理员账号，普通用户通过域账号登录并自动同步。
+              </p>
+            </div>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                @click="testLdapConnection"
+                :disabled="testingLdap"
+                class="btn btn-secondary btn-sm"
+              >
+                <svg v-if="testingLdap" class="mr-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                测试连接
+              </button>
+              <button
+                type="button"
+                @click="syncLdapNow"
+                :disabled="syncingLdap"
+                class="btn btn-secondary btn-sm"
+              >
+                <svg v-if="syncingLdap" class="mr-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                立即同步
+              </button>
+            </div>
           </div>
           <div class="space-y-5 p-6">
             <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-200">
@@ -1286,6 +1314,8 @@ const logoError = ref('')
 
 // Admin API Key 状态
 const adminApiKeyLoading = ref(true)
+const testingLdap = ref(false)
+const syncingLdap = ref(false)
 const adminApiKeyExists = ref(false)
 const adminApiKeyMasked = ref('')
 const adminApiKeyOperating = ref(false)
@@ -1564,6 +1594,34 @@ async function saveSettings() {
     )
   } finally {
     saving.value = false
+  }
+}
+
+async function testLdapConnection() {
+  testingLdap.value = true
+  try {
+    const result = await adminAPI.settings.testLDAPConnection()
+    appStore.showSuccess(result.message || 'LDAP 连接测试成功')
+  } catch (error: any) {
+    appStore.showError('LDAP 连接测试失败: ' + (error.message || '未知错误'))
+  } finally {
+    testingLdap.value = false
+  }
+}
+
+async function syncLdapNow() {
+  if (!confirm('确定要立即开始 LDAP 用户同步吗？这可能会持续一段时间。')) return
+
+  syncingLdap.value = true
+  try {
+    const result = await adminAPI.settings.syncLDAPUsersNow()
+    appStore.showSuccess(
+      `LDAP 同步完成！检查: ${result.checked}, 更新: ${result.updated}, 禁用: ${result.disabled}`
+    )
+  } catch (error: any) {
+    appStore.showError('LDAP 同步失败: ' + (error.message || '未知错误'))
+  } finally {
+    syncingLdap.value = false
   }
 }
 

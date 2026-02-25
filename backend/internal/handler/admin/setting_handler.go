@@ -19,16 +19,18 @@ import (
 type SettingHandler struct {
 	settingService   *service.SettingService
 	emailService     *service.EmailService
+	authService      *service.AuthService
 	turnstileService *service.TurnstileService
 	opsService       *service.OpsService
 	soraS3Storage    *service.SoraS3Storage
 }
 
 // NewSettingHandler 创建系统设置处理器
-func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, soraS3Storage *service.SoraS3Storage) *SettingHandler {
+func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, authService *service.AuthService, turnstileService *service.TurnstileService, opsService *service.OpsService, soraS3Storage *service.SoraS3Storage) *SettingHandler {
 	return &SettingHandler{
 		settingService:   settingService,
 		emailService:     emailService,
+		authService:      authService,
 		turnstileService: turnstileService,
 		opsService:       opsService,
 		soraS3Storage:    soraS3Storage,
@@ -888,6 +890,40 @@ func (h *SettingHandler) SendTestEmail(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "Test email sent successfully"})
+}
+
+// TestLDAPConnection 测试 LDAP 连接
+// POST /api/v1/admin/settings/ldap/test
+func (h *SettingHandler) TestLDAPConnection(c *gin.Context) {
+	if h.authService == nil {
+		response.Error(c, 503, "Auth service not available")
+		return
+	}
+
+	err := h.authService.TestLDAPConnection(c.Request.Context())
+	if err != nil {
+		response.Error(c, 400, "LDAP 连接测试失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{"message": "LDAP 连接测试成功"})
+}
+
+// SyncLDAPUsersNow 立即触发 LDAP 用户同步
+// POST /api/v1/admin/settings/ldap/sync
+func (h *SettingHandler) SyncLDAPUsersNow(c *gin.Context) {
+	if h.authService == nil {
+		response.Error(c, 503, "Auth service not available")
+		return
+	}
+
+	result, err := h.authService.SyncLDAPUsersNow(c.Request.Context())
+	if err != nil {
+		response.Error(c, 500, "LDAP 同步失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, result)
 }
 
 // GetAdminAPIKey 获取管理员 API Key 状态

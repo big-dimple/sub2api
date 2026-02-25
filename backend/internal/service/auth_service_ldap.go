@@ -124,12 +124,14 @@ func (s *AuthService) loginWithLDAPMode(ctx context.Context, identifier, passwor
 func (s *AuthService) authenticateLDAPUser(ctx context.Context, cfg *LDAPConfig, identifier, password string) (*LDAPIdentity, error) {
 	conn, err := s.openLDAPConnection(cfg)
 	if err != nil {
+		log.Printf("[LDAP] connection failed: %v", err)
 		return nil, err
 	}
 	defer func() { _ = conn.Close() }()
 
 	entry, err := s.searchLDAPUserForLogin(ctx, conn, cfg, identifier)
 	if err != nil {
+		log.Printf("[LDAP] user search failed identifier=%s: %v", identifier, err)
 		if errors.Is(err, ErrUserNotFound) || errors.Is(err, ErrInvalidCredentials) {
 			return nil, ErrInvalidCredentials
 		}
@@ -138,13 +140,16 @@ func (s *AuthService) authenticateLDAPUser(ctx context.Context, cfg *LDAPConfig,
 
 	identity := s.entryToLDAPIdentity(cfg, entry, identifier)
 	if identity.Disabled {
+		log.Printf("[LDAP] user is disabled in LDAP: %s", identity.UID)
 		return nil, ErrUserNotActive
 	}
 	if !isLDAPUserAllowed(identity.GroupDNs, cfg.AllowedGroupDNs) {
+		log.Printf("[LDAP] user %s (groups: %v) is not in allowed groups: %v", identity.UID, identity.GroupDNs, cfg.AllowedGroupDNs)
 		return nil, infraerrors.Forbidden("LDAP_GROUP_NOT_ALLOWED", "ldap user is not in allowed groups")
 	}
 
 	if err := conn.Bind(entry.DN, password); err != nil {
+		log.Printf("[LDAP] user bind failed dn=%s: %v", entry.DN, err)
 		if isLDAPInvalidCredentials(err) {
 			return nil, ErrInvalidCredentials
 		}
@@ -187,6 +192,7 @@ func (s *AuthService) openLDAPConnection(cfg *LDAPConfig) (*ldap.Conn, error) {
 
 	if strings.TrimSpace(cfg.BindDN) != "" {
 		if err := conn.Bind(cfg.BindDN, cfg.BindPassword); err != nil {
+			log.Printf("[LDAP] manager bind failed: bind_dn=%s, err=%v", cfg.BindDN, err)
 			_ = conn.Close()
 			if isLDAPInvalidCredentials(err) {
 				return nil, ErrInvalidCredentials
@@ -199,6 +205,7 @@ func (s *AuthService) openLDAPConnection(cfg *LDAPConfig) (*ldap.Conn, error) {
 
 func (s *AuthService) searchLDAPUserForLogin(_ context.Context, conn *ldap.Conn, cfg *LDAPConfig, identifier string) (*ldap.Entry, error) {
 	filter := buildLDAPUserFilter(cfg, identifier)
+	log.Printf("[LDAP] searching user with filter: %s", filter)
 	attrs := uniqueLDAPAttrs([]string{
 		cfg.UIDAttr,
 		cfg.LoginAttr,
