@@ -19,6 +19,9 @@ FROM ${NODE_IMAGE} AS frontend-builder
 
 WORKDIR /app/frontend
 
+# Set NPM mirror
+RUN npm config set registry https://repo.huaweicloud.com/repository/npm/
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
@@ -39,11 +42,14 @@ FROM ${GOLANG_IMAGE} AS backend-builder
 ARG VERSION=
 ARG COMMIT=docker
 ARG DATE
-ARG GOPROXY
-ARG GOSUMDB
+ARG GOPROXY=https://goproxy.cn,direct
+ARG GOSUMDB=sum.golang.google.cn
 
 ENV GOPROXY=${GOPROXY}
 ENV GOSUMDB=${GOSUMDB}
+
+# Set APK mirror
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.huaweicloud.com/g' /etc/apk/repositories
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -76,6 +82,9 @@ RUN VERSION_VALUE="${VERSION}" && \
 # Stage 3: Final Runtime Image
 # -----------------------------------------------------------------------------
 FROM ${ALPINE_IMAGE}
+
+# Set APK mirror
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.huaweicloud.com/g' /etc/apk/repositories
 
 # Labels
 LABEL maintainer="Wei-Shaw <github.com/Wei-Shaw>"
