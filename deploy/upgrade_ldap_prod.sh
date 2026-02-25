@@ -28,7 +28,9 @@ mkdir -p "$BACKUP_DIR"
 # 备份数据库 (PostgreSQL 逻辑备份，最安全)
 echo "   正在导出 PostgreSQL 数据库..."
 if docker compose -f "$COMPOSE_FILE" ps | grep -q "postgres"; then
-    docker exec sub2api-postgres pg_dump -U postgres sub2api > "$BACKUP_DIR/sub2api_db.sql" || echo "⚠️ 数据库导出可能不完整，请检查运行状态。"
+    DB_USER=$(grep "POSTGRES_USER=" "$ENV_FILE" | cut -d'=' -f2)
+    [ -z "$DB_USER" ] && DB_USER="sub2api"
+    docker exec sub2api-postgres pg_dump -U "$DB_USER" sub2api > "$BACKUP_DIR/sub2api_db.sql" || echo "⚠️ 数据库导出可能不完整，请检查运行状态。"
 else
     echo "⚠️ PostgreSQL 容器未运行，跳过数据库逻辑备份。"
 fi
