@@ -277,7 +277,7 @@ func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string) (*S
 	logger.LegacyPrintf("service.auth", "[Auth] SendVerifyCodeAsync called for email: %s", email)
 
 	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
-		log.Println("[Auth] LDAP mode enabled, registration verification is disabled")
+		logger.LegacyPrintf("service.auth", "[Auth] LDAP mode enabled, registration verification is disabled")
 		return nil, ErrRegDisabled
 	}
 
