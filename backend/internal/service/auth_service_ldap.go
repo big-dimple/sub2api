@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
@@ -15,16 +16,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/go-ldap/ldap/v3"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const ldapSyntheticEmailDomain = "ldap.local"
-
-var (
-	ldapSyncWorkerOnce sync.Once
-	ldapSyncRunMu      sync.Mutex
-)
 
 // LDAPUserRepository is an optional extension implemented by userRepository.
 type LDAPUserRepository interface {
@@ -42,94 +40,111 @@ type LDAPSyncResult struct {
 	Updated  int `json:"updated"`
 }
 
-func (s *AuthService) startLDAPSyncWorker() {
-	if s == nil || s.settingService == nil || s.ldapUserRepo == nil {
-		return
-	}
-	ldapSyncWorkerOnce.Do(func() {
-		go func() {
-			ticker := time.NewTicker(5 * time.Minute)
-			defer ticker.Stop()
-			for range ticker.C {
-				if err := s.runLDAPSyncIfDue(context.Background()); err != nil {
-					log.Printf("[LDAP] periodic sync failed: %v", err)
-				}
-			}
-		}()
-	})
+// LDAPProvider implements ExternalAuthProvider for LDAP/AD integration.
+type LDAPProvider struct {
+	userRepo          UserRepository
+	ldapUserRepo      LDAPUserRepository
+	settingService    *SettingService
+	cfg               *config.Config
+	refreshTokenCache RefreshTokenCache
+
+	syncMu sync.Mutex
+	stopCh chan struct{}
 }
 
-func (s *AuthService) loginWithLDAPMode(ctx context.Context, identifier, password string) (string, *User, error) {
+// NewLDAPProvider creates a new LDAP provider.
+func NewLDAPProvider(
+	userRepo UserRepository,
+	ldapUserRepo LDAPUserRepository,
+	settingService *SettingService,
+	cfg *config.Config,
+	refreshTokenCache RefreshTokenCache,
+) *LDAPProvider {
+	return &LDAPProvider{
+		userRepo:          userRepo,
+		ldapUserRepo:      ldapUserRepo,
+		settingService:    settingService,
+		cfg:               cfg,
+		refreshTokenCache: refreshTokenCache,
+		stopCh:            make(chan struct{}),
+	}
+}
+
+// Ensure interface compliance
+var _ ExternalAuthProvider = (*LDAPProvider)(nil)
+
+func (p *LDAPProvider) Start() {
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := p.runLDAPSyncIfDue(context.Background()); err != nil {
+					log.Printf("[LDAP] periodic sync failed: %v", err)
+				}
+			case <-p.stopCh:
+				return
+			}
+		}
+	}()
+}
+
+func (p *LDAPProvider) Stop() {
+	close(p.stopCh)
+}
+
+func (p *LDAPProvider) Login(ctx context.Context, identifier, password string) (*User, error) {
 	identifier = strings.TrimSpace(identifier)
 	if identifier == "" || strings.TrimSpace(password) == "" {
-		return "", nil, ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
-	// Local admin is always allowed to login with local password.
-	if localUser, err := s.userRepo.GetByEmail(ctx, identifier); err == nil && localUser.IsAdmin() {
-		if !s.CheckPassword(password, localUser.PasswordHash) {
-			return "", nil, ErrInvalidCredentials
-		}
-		if !localUser.IsActive() {
-			return "", nil, ErrUserNotActive
-		}
-		token, tokenErr := s.GenerateToken(localUser)
-		if tokenErr != nil {
-			return "", nil, ErrServiceUnavailable
-		}
-		return token, localUser, nil
-	}
-
-	cfg, err := s.settingService.GetLDAPConfig(ctx)
+	cfg, err := p.settingService.GetLDAPConfig(ctx)
 	if err != nil {
-		return "", nil, ErrServiceUnavailable
+		return nil, ErrServiceUnavailable
 	}
 	if !cfg.Enabled {
-		return "", nil, ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
-	identity, err := s.authenticateLDAPUser(ctx, cfg, identifier, password)
+	identity, err := p.authenticateLDAPUser(ctx, cfg, identifier, password)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserNotActive) {
-			return "", nil, err
+			return nil, err
 		}
 		if code := infraerrors.Code(err); code >= 400 && code < 500 {
-			return "", nil, err
+			return nil, err
 		}
-		return "", nil, ErrServiceUnavailable
+		return nil, ErrServiceUnavailable
 	}
 
-	user, err := s.upsertLDAPUser(ctx, identity, cfg)
+	user, err := p.upsertLDAPUser(ctx, identity, cfg)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 	if !user.IsActive() {
-		return "", nil, ErrUserNotActive
-	}
-
-	token, err := s.GenerateToken(user)
-	if err != nil {
-		return "", nil, fmt.Errorf("generate token: %w", err)
+		return nil, ErrUserNotActive
 	}
 
 	go func() {
-		if syncErr := s.runLDAPSyncIfDue(context.Background()); syncErr != nil {
+		if syncErr := p.runLDAPSyncIfDue(context.Background()); syncErr != nil {
 			log.Printf("[LDAP] login-triggered sync failed: %v", syncErr)
 		}
 	}()
 
-	return token, user, nil
+	return user, nil
 }
 
-func (s *AuthService) authenticateLDAPUser(ctx context.Context, cfg *LDAPConfig, identifier, password string) (*LDAPIdentity, error) {
-	conn, err := s.openLDAPConnection(cfg)
+func (p *LDAPProvider) authenticateLDAPUser(ctx context.Context, cfg *LDAPConfig, identifier, password string) (*LDAPIdentity, error) {
+	conn, err := p.openLDAPConnection(cfg)
 	if err != nil {
 		log.Printf("[LDAP] connection failed: %v", err)
 		return nil, err
 	}
 	defer func() { _ = conn.Close() }()
 
-	entry, err := s.searchLDAPUserForLogin(ctx, conn, cfg, identifier)
+	entry, err := p.searchLDAPUserForLogin(ctx, conn, cfg, identifier)
 	if err != nil {
 		log.Printf("[LDAP] user search failed identifier=%s: %v", identifier, err)
 		if errors.Is(err, ErrUserNotFound) || errors.Is(err, ErrInvalidCredentials) {
@@ -138,7 +153,7 @@ func (s *AuthService) authenticateLDAPUser(ctx context.Context, cfg *LDAPConfig,
 		return nil, err
 	}
 
-	identity := s.entryToLDAPIdentity(cfg, entry, identifier)
+	identity := p.entryToLDAPIdentity(cfg, entry, identifier)
 	if identity.Disabled {
 		log.Printf("[LDAP] user is disabled in LDAP: %s", identity.UID)
 		return nil, ErrUserNotActive
@@ -158,7 +173,7 @@ func (s *AuthService) authenticateLDAPUser(ctx context.Context, cfg *LDAPConfig,
 	return identity, nil
 }
 
-func (s *AuthService) openLDAPConnection(cfg *LDAPConfig) (*ldap.Conn, error) {
+func (p *LDAPProvider) openLDAPConnection(cfg *LDAPConfig) (*ldap.Conn, error) {
 	if cfg == nil || strings.TrimSpace(cfg.Host) == "" || cfg.Port <= 0 {
 		return nil, infraerrors.BadRequest("LDAP_CONFIG_INVALID", "ldap host/port is not configured")
 	}
@@ -203,7 +218,7 @@ func (s *AuthService) openLDAPConnection(cfg *LDAPConfig) (*ldap.Conn, error) {
 	return conn, nil
 }
 
-func (s *AuthService) searchLDAPUserForLogin(_ context.Context, conn *ldap.Conn, cfg *LDAPConfig, identifier string) (*ldap.Entry, error) {
+func (p *LDAPProvider) searchLDAPUserForLogin(_ context.Context, conn *ldap.Conn, cfg *LDAPConfig, identifier string) (*ldap.Entry, error) {
 	filter := buildLDAPUserFilter(cfg, identifier)
 	log.Printf("[LDAP] searching user with filter: %s", filter)
 	attrs := uniqueLDAPAttrs([]string{
@@ -240,7 +255,7 @@ func (s *AuthService) searchLDAPUserForLogin(_ context.Context, conn *ldap.Conn,
 	return resp.Entries[0], nil
 }
 
-func (s *AuthService) entryToLDAPIdentity(cfg *LDAPConfig, entry *ldap.Entry, fallbackIdentifier string) *LDAPIdentity {
+func (p *LDAPProvider) entryToLDAPIdentity(cfg *LDAPConfig, entry *ldap.Entry, fallbackIdentifier string) *LDAPIdentity {
 	uid := firstLDAPAttr(entry, cfg.UIDAttr)
 	if uid == "" {
 		uid = entry.DN
@@ -267,12 +282,9 @@ func (s *AuthService) entryToLDAPIdentity(cfg *LDAPConfig, entry *ldap.Entry, fa
 	}
 }
 
-func (s *AuthService) upsertLDAPUser(ctx context.Context, identity *LDAPIdentity, cfg *LDAPConfig) (*User, error) {
+func (p *LDAPProvider) upsertLDAPUser(ctx context.Context, identity *LDAPIdentity, cfg *LDAPConfig) (*User, error) {
 	if identity == nil {
 		return nil, ErrInvalidCredentials
-	}
-	if s.ldapUserRepo == nil {
-		return nil, ErrServiceUnavailable
 	}
 
 	var (
@@ -280,13 +292,13 @@ func (s *AuthService) upsertLDAPUser(ctx context.Context, identity *LDAPIdentity
 		err  error
 	)
 	if strings.TrimSpace(identity.UID) != "" {
-		user, err = s.ldapUserRepo.GetByLDAPUID(ctx, identity.UID)
+		user, err = p.ldapUserRepo.GetByLDAPUID(ctx, identity.UID)
 		if err != nil && !errors.Is(err, ErrUserNotFound) {
 			return nil, ErrServiceUnavailable
 		}
 	}
 	if user == nil && strings.TrimSpace(identity.Email) != "" {
-		user, err = s.userRepo.GetByEmail(ctx, identity.Email)
+		user, err = p.userRepo.GetByEmail(ctx, identity.Email)
 		if err != nil && !errors.Is(err, ErrUserNotFound) {
 			return nil, ErrServiceUnavailable
 		}
@@ -294,20 +306,21 @@ func (s *AuthService) upsertLDAPUser(ctx context.Context, identity *LDAPIdentity
 
 	selectedMapping := pickLDAPMapping(identity.GroupDNs, cfg.GroupMappings)
 	if user == nil {
-		randomPassword, genErr := randomHexString(32)
-		if genErr != nil {
-			return nil, ErrServiceUnavailable
-		}
-		hashedPassword, hashErr := s.HashPassword(randomPassword)
+		buf := make([]byte, 16)
+		_, _ = rand.Read(buf)
+		randomPassword := hex.EncodeToString(buf)
+		
+		hashedBytes, hashErr := bcrypt.GenerateFromPassword([]byte(randomPassword), bcrypt.DefaultCost)
 		if hashErr != nil {
 			return nil, ErrServiceUnavailable
 		}
+		hashedPassword := string(hashedBytes)
 
-		balance := s.cfg.Default.UserBalance
-		concurrency := s.cfg.Default.UserConcurrency
-		if s.settingService != nil {
-			balance = s.settingService.GetDefaultBalance(ctx)
-			concurrency = s.settingService.GetDefaultConcurrency(ctx)
+		balance := p.cfg.Default.UserBalance
+		concurrency := p.cfg.Default.UserConcurrency
+		if p.settingService != nil {
+			balance = p.settingService.GetDefaultBalance(ctx)
+			concurrency = p.settingService.GetDefaultConcurrency(ctx)
 		}
 		if selectedMapping != nil {
 			if selectedMapping.Balance > 0 {
@@ -328,10 +341,9 @@ func (s *AuthService) upsertLDAPUser(ctx context.Context, identity *LDAPIdentity
 			Status:       StatusActive,
 			AuthSource:   "ldap",
 		}
-		if err := s.userRepo.Create(ctx, user); err != nil {
+		if err := p.userRepo.Create(ctx, user); err != nil {
 			if errors.Is(err, ErrEmailExists) {
-				// Race fallback: resolve by email and continue update path.
-				user, err = s.userRepo.GetByEmail(ctx, ensureLDAPEmail(identity))
+				user, err = p.userRepo.GetByEmail(ctx, ensureLDAPEmail(identity))
 				if err != nil {
 					return nil, ErrServiceUnavailable
 				}
@@ -353,7 +365,7 @@ func (s *AuthService) upsertLDAPUser(ctx context.Context, identity *LDAPIdentity
 			if strings.EqualFold(identity.Email, user.Email) {
 				user.Email = identity.Email
 			} else {
-				exists, existsErr := s.userRepo.ExistsByEmail(ctx, identity.Email)
+				exists, existsErr := p.userRepo.ExistsByEmail(ctx, identity.Email)
 				if existsErr == nil && !exists {
 					user.Email = identity.Email
 				}
@@ -362,21 +374,21 @@ func (s *AuthService) upsertLDAPUser(ctx context.Context, identity *LDAPIdentity
 		if !user.IsAdmin() {
 			user.Role = RoleUser
 			if selectedMapping != nil {
-				if selectedMapping.Balance > 0 {
-					user.Balance = selectedMapping.Balance
-				}
-				if selectedMapping.Concurrency > 0 {
+				if selectedMapping.Concurrency > 0 && user.Concurrency != selectedMapping.Concurrency {
 					user.Concurrency = selectedMapping.Concurrency
+				}
+				if selectedMapping.Balance > 0 && user.Balance != selectedMapping.Balance {
+					user.Balance = selectedMapping.Balance
 				}
 			}
 		}
 
-		if err := s.userRepo.Update(ctx, user); err != nil {
+		if err := p.userRepo.Update(ctx, user); err != nil {
 			return nil, ErrServiceUnavailable
 		}
 	}
 
-	if err := s.ldapUserRepo.UpsertLDAPProfile(ctx, &LDAPUserProfile{
+	if err := p.ldapUserRepo.UpsertLDAPProfile(ctx, &LDAPUserProfile{
 		UserID:       user.ID,
 		LDAPUID:      identity.UID,
 		LDAPUsername: identity.Username,
@@ -390,41 +402,34 @@ func (s *AuthService) upsertLDAPUser(ctx context.Context, identity *LDAPIdentity
 		return nil, ErrServiceUnavailable
 	}
 
-	freshUser, err := s.userRepo.GetByID(ctx, user.ID)
+	freshUser, err := p.userRepo.GetByID(ctx, user.ID)
 	if err != nil {
 		return nil, ErrServiceUnavailable
 	}
 	return freshUser, nil
 }
 
-func (s *AuthService) runLDAPSyncIfDue(ctx context.Context) error {
-	if s.settingService == nil || s.ldapUserRepo == nil {
-		return nil
-	}
-	cfg, err := s.settingService.GetLDAPConfig(ctx)
+func (p *LDAPProvider) runLDAPSyncIfDue(ctx context.Context) error {
+	cfg, err := p.settingService.GetLDAPConfig(ctx)
 	if err != nil {
 		return err
 	}
 	if !cfg.Enabled || !cfg.SyncEnabled {
 		return nil
 	}
-	lastSyncAt := s.settingService.GetLDAPLastSyncAt(ctx)
+	lastSyncAt := p.settingService.GetLDAPLastSyncAt(ctx)
 	if !lastSyncAt.IsZero() && time.Since(lastSyncAt) < time.Duration(cfg.SyncIntervalMins)*time.Minute {
 		return nil
 	}
-	_, err = s.SyncLDAPUsersNow(ctx)
+	_, err = p.SyncNow(ctx)
 	return err
 }
 
-// SyncLDAPUsersNow performs immediate LDAP lifecycle sync.
-func (s *AuthService) SyncLDAPUsersNow(ctx context.Context) (*LDAPSyncResult, error) {
-	ldapSyncRunMu.Lock()
-	defer ldapSyncRunMu.Unlock()
+func (p *LDAPProvider) SyncNow(ctx context.Context) (*LDAPSyncResult, error) {
+	p.syncMu.Lock()
+	defer p.syncMu.Unlock()
 
-	if s.settingService == nil || s.ldapUserRepo == nil {
-		return &LDAPSyncResult{}, nil
-	}
-	cfg, err := s.settingService.GetLDAPConfig(ctx)
+	cfg, err := p.settingService.GetLDAPConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -432,13 +437,13 @@ func (s *AuthService) SyncLDAPUsersNow(ctx context.Context) (*LDAPSyncResult, er
 		return &LDAPSyncResult{}, nil
 	}
 
-	conn, err := s.openLDAPConnection(cfg)
+	conn, err := p.openLDAPConnection(cfg)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = conn.Close() }()
 
-	targets, err := s.ldapUserRepo.ListActiveLDAPSyncTargets(ctx)
+	targets, err := p.ldapUserRepo.ListActiveLDAPSyncTargets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -446,18 +451,20 @@ func (s *AuthService) SyncLDAPUsersNow(ctx context.Context) (*LDAPSyncResult, er
 	result := &LDAPSyncResult{}
 	for _, target := range targets {
 		result.Checked++
-		identity, lookupErr := s.lookupLDAPIdentityForSync(ctx, conn, cfg, target)
+		identity, lookupErr := p.lookupLDAPIdentityForSync(ctx, conn, cfg, target)
 		if lookupErr != nil || identity == nil || identity.Disabled || !isLDAPUserAllowed(identity.GroupDNs, cfg.AllowedGroupDNs) {
-			if disableErr := s.ldapUserRepo.DisableUser(ctx, target.UserID); disableErr != nil {
+			if disableErr := p.ldapUserRepo.DisableUser(ctx, target.UserID); disableErr != nil {
 				log.Printf("[LDAP] disable user failed user_id=%d err=%v", target.UserID, disableErr)
 				continue
 			}
-			_ = s.RevokeAllUserSessions(ctx, target.UserID)
+			if p.refreshTokenCache != nil {
+				_ = p.refreshTokenCache.DeleteUserRefreshTokens(ctx, target.UserID)
+			}
 			result.Disabled++
 			continue
 		}
 
-		user, getErr := s.userRepo.GetByID(ctx, target.UserID)
+		user, getErr := p.userRepo.GetByID(ctx, target.UserID)
 		if getErr != nil {
 			continue
 		}
@@ -475,7 +482,7 @@ func (s *AuthService) SyncLDAPUsersNow(ctx context.Context) (*LDAPSyncResult, er
 					changed = true
 				}
 			} else {
-				exists, existsErr := s.userRepo.ExistsByEmail(ctx, identity.Email)
+				exists, existsErr := p.userRepo.ExistsByEmail(ctx, identity.Email)
 				if existsErr == nil && !exists {
 					user.Email = identity.Email
 					changed = true
@@ -505,11 +512,11 @@ func (s *AuthService) SyncLDAPUsersNow(ctx context.Context) (*LDAPSyncResult, er
 			changed = true
 		}
 		if changed {
-			if updateErr := s.userRepo.Update(ctx, user); updateErr == nil {
+			if updateErr := p.userRepo.Update(ctx, user); updateErr == nil {
 				result.Updated++
 			}
 		}
-		_ = s.ldapUserRepo.UpsertLDAPProfile(ctx, &LDAPUserProfile{
+		_ = p.ldapUserRepo.UpsertLDAPProfile(ctx, &LDAPUserProfile{
 			UserID:       target.UserID,
 			LDAPUID:      identity.UID,
 			LDAPUsername: identity.Username,
@@ -522,20 +529,16 @@ func (s *AuthService) SyncLDAPUsersNow(ctx context.Context) (*LDAPSyncResult, er
 		})
 	}
 
-	_ = s.settingService.SetLDAPLastSyncAt(ctx, time.Now().UTC())
+	_ = p.settingService.SetLDAPLastSyncAt(ctx, time.Now().UTC())
 	return result, nil
 }
 
-// TestLDAPConnection validates LDAP connectivity using current settings.
-func (s *AuthService) TestLDAPConnection(ctx context.Context) error {
-	if s.settingService == nil {
-		return ErrServiceUnavailable
-	}
-	cfg, err := s.settingService.GetLDAPConfig(ctx)
+func (p *LDAPProvider) TestConnection(ctx context.Context) error {
+	cfg, err := p.settingService.GetLDAPConfig(ctx)
 	if err != nil {
 		return err
 	}
-	conn, err := s.openLDAPConnection(cfg)
+	conn, err := p.openLDAPConnection(cfg)
 	if err != nil {
 		return err
 	}
@@ -543,7 +546,7 @@ func (s *AuthService) TestLDAPConnection(ctx context.Context) error {
 	return nil
 }
 
-func (s *AuthService) lookupLDAPIdentityForSync(_ context.Context, conn *ldap.Conn, cfg *LDAPConfig, target LDAPSyncTarget) (*LDAPIdentity, error) {
+func (p *LDAPProvider) lookupLDAPIdentityForSync(_ context.Context, conn *ldap.Conn, cfg *LDAPConfig, target LDAPSyncTarget) (*LDAPIdentity, error) {
 	filters := make([]string, 0, 2)
 	if strings.TrimSpace(target.LDAPUID) != "" {
 		filters = append(filters, fmt.Sprintf("(%s=%s)", cfg.UIDAttr, ldap.EscapeFilter(target.LDAPUID)))
@@ -584,7 +587,7 @@ func (s *AuthService) lookupLDAPIdentityForSync(_ context.Context, conn *ldap.Co
 		if len(resp.Entries) == 0 {
 			continue
 		}
-		return s.entryToLDAPIdentity(cfg, resp.Entries[0], target.LDAPUsername), nil
+		return p.entryToLDAPIdentity(cfg, resp.Entries[0], target.LDAPUsername), nil
 	}
 	return nil, ErrUserNotFound
 }
@@ -711,7 +714,6 @@ func firstLDAPAttr(entry *ldap.Entry, attr string) string {
 	if value != "" {
 		return value
 	}
-	// AD objectGUID and some attrs may be raw bytes.
 	raw := entry.GetRawAttributeValue(attr)
 	if len(raw) > 0 {
 		return hex.EncodeToString(raw)
@@ -747,7 +749,6 @@ func ldapEntryIsDisabled(entry *ldap.Entry) bool {
 	if err != nil {
 		return false
 	}
-	// AD disabled bit.
 	return (v & 0x2) == 0x2
 }
 
@@ -767,7 +768,6 @@ func normalizeUserAuthSource(source string) string {
 	return source
 }
 
-// tlsConfigWithServerName is a small helper to keep TLS settings explicit.
 type tlsConfigWithServerName struct {
 	InsecureSkipVerify bool
 	ServerName         string

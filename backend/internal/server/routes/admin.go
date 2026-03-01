@@ -399,6 +399,27 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.POST("/ldap/sync", h.Admin.Setting.SyncLDAPUsersNow)
 	}
 }
+
+func registerDataManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	dataManagement := admin.Group("/data-management")
+	{
+		dataManagement.GET("/agent/health", h.Admin.DataManagement.GetAgentHealth)
+		dataManagement.GET("/config", h.Admin.DataManagement.GetConfig)
+		dataManagement.PUT("/config", h.Admin.DataManagement.UpdateConfig)
+		dataManagement.GET("/sources/:source_type/profiles", h.Admin.DataManagement.ListSourceProfiles)
+		dataManagement.POST("/sources/:source_type/profiles", h.Admin.DataManagement.CreateSourceProfile)
+		dataManagement.PUT("/sources/:source_type/profiles/:profile_id", h.Admin.DataManagement.UpdateSourceProfile)
+		dataManagement.DELETE("/sources/:source_type/profiles/:profile_id", h.Admin.DataManagement.DeleteSourceProfile)
+		dataManagement.POST("/sources/:source_type/profiles/:profile_id/activate", h.Admin.DataManagement.SetActiveSourceProfile)
+		dataManagement.POST("/s3/test", h.Admin.DataManagement.TestS3)
+		dataManagement.GET("/s3/profiles", h.Admin.DataManagement.ListS3Profiles)
+		dataManagement.POST("/s3/profiles", h.Admin.DataManagement.CreateS3Profile)
+		dataManagement.PUT("/s3/profiles/:profile_id", h.Admin.DataManagement.UpdateS3Profile)
+		dataManagement.DELETE("/s3/profiles/:profile_id", h.Admin.DataManagement.DeleteS3Profile)
+		dataManagement.POST("/s3/profiles/:profile_id/activate", h.Admin.DataManagement.SetActiveS3Profile)
+		dataManagement.POST("/backups", h.Admin.DataManagement.CreateBackupJob)
+		dataManagement.GET("/backups", h.Admin.DataManagement.ListBackupJobs)
+		dataManagement.GET("/backups/:job_id", h.Admin.DataManagement.GetBackupJob)
 	}
 }
 

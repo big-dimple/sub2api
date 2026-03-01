@@ -332,7 +332,6 @@ export const useAppStore = defineStore('app', () => {
         ldap_enabled: false,
         version: siteVersion.value
       }
-      }
     }
 
     // Prevent duplicate requests

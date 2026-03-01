@@ -57,7 +57,7 @@ type JWTClaims struct {
 // AuthService 认证服务
 type AuthService struct {
 	userRepo          UserRepository
-	ldapUserRepo      LDAPUserRepository
+	externalAuth      ExternalAuthProvider
 	redeemRepo        RedeemCodeRepository
 	refreshTokenCache RefreshTokenCache
 	cfg               *config.Config
@@ -71,6 +71,7 @@ type AuthService struct {
 // NewAuthService 创建认证服务实例
 func NewAuthService(
 	userRepo UserRepository,
+	externalAuth ExternalAuthProvider,
 	redeemRepo RedeemCodeRepository,
 	refreshTokenCache RefreshTokenCache,
 	cfg *config.Config,
@@ -82,6 +83,7 @@ func NewAuthService(
 ) *AuthService {
 	authSvc := &AuthService{
 		userRepo:          userRepo,
+		externalAuth:      externalAuth,
 		redeemRepo:        redeemRepo,
 		refreshTokenCache: refreshTokenCache,
 		cfg:               cfg,
@@ -90,10 +92,6 @@ func NewAuthService(
 		turnstileService:  turnstileService,
 		emailQueueService: emailQueueService,
 		promoService:      promoService,
-	}
-	if ldapRepo, ok := userRepo.(LDAPUserRepository); ok {
-		authSvc.ldapUserRepo = ldapRepo
-		authSvc.startLDAPSyncWorker()
 	}
 	return authSvc
 }
@@ -397,9 +395,33 @@ func (s *AuthService) IsEmailVerifyEnabled(ctx context.Context) bool {
 // Login 用户登录，返回JWT token
 func (s *AuthService) Login(ctx context.Context, email, password string) (string, *User, error) {
 	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
-		token, user, err := s.loginWithLDAPMode(ctx, email, password)
+		// 本地管理员始终允许通过本地密码登录
+		if localUser, err := s.userRepo.GetByEmail(ctx, email); err == nil && localUser.IsAdmin() {
+			if !s.CheckPassword(password, localUser.PasswordHash) {
+				return "", nil, ErrInvalidCredentials
+			}
+			if !localUser.IsActive() {
+				return "", nil, ErrUserNotActive
+			}
+			token, err := s.GenerateToken(localUser)
+			if err != nil {
+				return "", nil, fmt.Errorf("generate token: %w", err)
+			}
+			return token, localUser, nil
+		}
+
+		if s.externalAuth == nil {
+			return "", nil, ErrServiceUnavailable
+		}
+
+		user, err := s.externalAuth.Login(ctx, email, password)
 		if err != nil {
 			return "", nil, err
+		}
+		
+		token, err := s.GenerateToken(user)
+		if err != nil {
+			return "", nil, fmt.Errorf("generate token: %w", err)
 		}
 		return token, user, nil
 	}

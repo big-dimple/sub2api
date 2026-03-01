@@ -582,10 +582,10 @@
               <button
                 type="button"
                 @click="testLdapConnection"
-                :disabled="testingLdap"
+                :disabled="ldapStore.isTesting"
                 class="btn btn-secondary btn-sm"
               >
-                <svg v-if="testingLdap" class="mr-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg v-if="ldapStore.isTesting" class="mr-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -594,10 +594,10 @@
               <button
                 type="button"
                 @click="syncLdapNow"
-                :disabled="syncingLdap"
+                :disabled="ldapStore.isSyncing"
                 class="btn btn-secondary btn-sm"
               >
-                <svg v-if="syncingLdap" class="mr-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg v-if="ldapStore.isSyncing" class="mr-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -1300,9 +1300,11 @@ import Icon from '@/components/icons/Icon.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
+import { useLdapSettingsStore } from '@/stores/ldapSettings'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const ldapStore = useLdapSettingsStore()
 const { copyToClipboard } = useClipboard()
 
 const loading = ref(true)
@@ -1314,8 +1316,6 @@ const logoError = ref('')
 
 // Admin API Key 状态
 const adminApiKeyLoading = ref(true)
-const testingLdap = ref(false)
-const syncingLdap = ref(false)
 const adminApiKeyExists = ref(false)
 const adminApiKeyMasked = ref('')
 const adminApiKeyOperating = ref(false)
@@ -1598,30 +1598,24 @@ async function saveSettings() {
 }
 
 async function testLdapConnection() {
-  testingLdap.value = true
   try {
-    const result = await adminAPI.settings.testLDAPConnection()
+    const result = await ldapStore.testConnection()
     appStore.showSuccess(result.message || 'LDAP 连接测试成功')
   } catch (error: any) {
     appStore.showError('LDAP 连接测试失败: ' + (error.message || '未知错误'))
-  } finally {
-    testingLdap.value = false
   }
 }
 
 async function syncLdapNow() {
   if (!confirm('确定要立即开始 LDAP 用户同步吗？这可能会持续一段时间。')) return
 
-  syncingLdap.value = true
   try {
-    const result = await adminAPI.settings.syncLDAPUsersNow()
+    const result = await ldapStore.syncNow()
     appStore.showSuccess(
       `LDAP 同步完成！检查: ${result.checked}, 更新: ${result.updated}, 禁用: ${result.disabled}`
     )
   } catch (error: any) {
     appStore.showError('LDAP 同步失败: ' + (error.message || '未知错误'))
-  } finally {
-    syncingLdap.value = false
   }
 }
 

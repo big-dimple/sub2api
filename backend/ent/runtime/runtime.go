@@ -950,20 +950,26 @@ func init() {
 	user.DefaultUsername = userDescUsername.Default.(string)
 	// user.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
 	user.UsernameValidator = userDescUsername.Validators[0].(func(string) error)
+	// userDescAuthSource is the schema descriptor for auth_source field.
+	userDescAuthSource := userFields[7].Descriptor()
+	// user.DefaultAuthSource holds the default value on creation for the auth_source field.
+	user.DefaultAuthSource = userDescAuthSource.Default.(string)
+	// user.AuthSourceValidator is a validator for the "auth_source" field. It is called by the builders before save.
+	user.AuthSourceValidator = userDescAuthSource.Validators[0].(func(string) error)
 	// userDescNotes is the schema descriptor for notes field.
-	userDescNotes := userFields[7].Descriptor()
+	userDescNotes := userFields[8].Descriptor()
 	// user.DefaultNotes holds the default value on creation for the notes field.
 	user.DefaultNotes = userDescNotes.Default.(string)
 	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
-	userDescTotpEnabled := userFields[9].Descriptor()
+	userDescTotpEnabled := userFields[10].Descriptor()
 	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
 	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	// userDescSoraStorageQuotaBytes is the schema descriptor for sora_storage_quota_bytes field.
-	userDescSoraStorageQuotaBytes := userFields[11].Descriptor()
+	userDescSoraStorageQuotaBytes := userFields[12].Descriptor()
 	// user.DefaultSoraStorageQuotaBytes holds the default value on creation for the sora_storage_quota_bytes field.
 	user.DefaultSoraStorageQuotaBytes = userDescSoraStorageQuotaBytes.Default.(int64)
 	// userDescSoraStorageUsedBytes is the schema descriptor for sora_storage_used_bytes field.
-	userDescSoraStorageUsedBytes := userFields[12].Descriptor()
+	userDescSoraStorageUsedBytes := userFields[13].Descriptor()
 	// user.DefaultSoraStorageUsedBytes holds the default value on creation for the sora_storage_used_bytes field.
 	user.DefaultSoraStorageUsedBytes = userDescSoraStorageUsedBytes.Default.(int64)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()

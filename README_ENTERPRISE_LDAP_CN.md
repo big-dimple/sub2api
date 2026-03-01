@@ -112,27 +112,24 @@ apt-get install -y docker.io docker-compose-plugin openssl curl git ca-certifica
 - 常规：每月一次同步官方 `main`。
 - 紧急：官方安全修复发布后 24 小时内同步评估。
 
-### 10.3 IT 可执行命令（标准流程）
-```bash
-# 仅首次执行
-git remote add upstream https://github.com/Wei-Shaw/sub2api.git
+### 10.3 IT/AI 同步指令（标准流程）
 
-# 每次同步
-git fetch upstream --tags
-git checkout -b sync/upstream-$(date +%Y%m%d) origin/main
-git merge --no-ff upstream/main -m "merge: sync upstream/main"
+本项目已配备全自动的**弹性同步工作流**（基于 Gemini CLI Skill 机制）。新接手的 AI 或研发人员只需运行以下入口脚本，流水线将依次进行预检、合并、构建修复与契约测试。
 
-# 冲突解决后做最小回归
-make test
-pnpm --dir frontend run build
-
-# 回灌主线
-git checkout main
-git merge --no-ff sync/upstream-$(date +%Y%m%d)
-git push origin main
+**给 AI 或 IT 的一键指令：**
+```text
+请在 sub2api 项目根目录执行 LDAP skill 的主控脚本，并按失败阶段自动修复直到 contract-gate 全绿：
+bash /root/.gemini/skills/sub2api-sync-ldap/scripts/sync.sh
 ```
 
-### 10.4 是否提交到官方仓库
+如果遇到红色重构级别冲突导致脚本中断，请让 AI 根据控制台的 `👉 AI 操作指南` 接管后续的修复与代码生成，直至所有契约测试（`contract-gate.sh`）通过。
+
+### 10.4 最终合并与推送
+一旦同步流水线（包含四个阶段）全绿通过，产物将被放置在 `feature/ldap-release` 分支。
+此时你可以执行：
+```bash
+git push origin feature/ldap-release:main --force
+```
 - 可以提交，但只提交“通用能力”（如 LDAP Bug 修复、通用可配置项）。
 - 企业特有策略（本地 admin 保留、组织配额规则、内部文档）留在 fork，不直接上游化。
 

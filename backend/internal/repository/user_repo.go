@@ -24,7 +24,7 @@ type userRepository struct {
 	sql    sqlExecutor
 }
 
-func NewUserRepository(client *dbent.Client, sqlDB *sql.DB) service.UserRepository {
+func NewUserRepository(client *dbent.Client, sqlDB *sql.DB) *userRepository {
 	return newUserRepositoryWithSQL(client, sqlDB)
 }
 

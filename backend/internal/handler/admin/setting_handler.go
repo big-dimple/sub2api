@@ -19,18 +19,18 @@ import (
 type SettingHandler struct {
 	settingService   *service.SettingService
 	emailService     *service.EmailService
-	authService      *service.AuthService
+	externalAuth     service.ExternalAuthProvider
 	turnstileService *service.TurnstileService
 	opsService       *service.OpsService
 	soraS3Storage    *service.SoraS3Storage
 }
 
 // NewSettingHandler 创建系统设置处理器
-func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, authService *service.AuthService, turnstileService *service.TurnstileService, opsService *service.OpsService, soraS3Storage *service.SoraS3Storage) *SettingHandler {
+func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, externalAuth service.ExternalAuthProvider, turnstileService *service.TurnstileService, opsService *service.OpsService, soraS3Storage *service.SoraS3Storage) *SettingHandler {
 	return &SettingHandler{
 		settingService:   settingService,
 		emailService:     emailService,
-		authService:      authService,
+		externalAuth:     externalAuth,
 		turnstileService: turnstileService,
 		opsService:       opsService,
 		soraS3Storage:    soraS3Storage,
@@ -895,12 +895,12 @@ func (h *SettingHandler) SendTestEmail(c *gin.Context) {
 // TestLDAPConnection 测试 LDAP 连接
 // POST /api/v1/admin/settings/ldap/test
 func (h *SettingHandler) TestLDAPConnection(c *gin.Context) {
-	if h.authService == nil {
+	if h.externalAuth == nil {
 		response.Error(c, 503, "Auth service not available")
 		return
 	}
 
-	err := h.authService.TestLDAPConnection(c.Request.Context())
+	err := h.externalAuth.TestConnection(c.Request.Context())
 	if err != nil {
 		response.Error(c, 400, "LDAP 连接测试失败: "+err.Error())
 		return
@@ -912,12 +912,12 @@ func (h *SettingHandler) TestLDAPConnection(c *gin.Context) {
 // SyncLDAPUsersNow 立即触发 LDAP 用户同步
 // POST /api/v1/admin/settings/ldap/sync
 func (h *SettingHandler) SyncLDAPUsersNow(c *gin.Context) {
-	if h.authService == nil {
+	if h.externalAuth == nil {
 		response.Error(c, 503, "Auth service not available")
 		return
 	}
 
-	result, err := h.authService.SyncLDAPUsersNow(c.Request.Context())
+	result, err := h.externalAuth.SyncNow(c.Request.Context())
 	if err != nil {
 		response.Error(c, 500, "LDAP 同步失败: "+err.Error())
 		return
