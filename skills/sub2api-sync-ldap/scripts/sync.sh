@@ -7,12 +7,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 usage() {
     cat <<'EOF'
 Usage:
-  bash sync.sh [--publish] [--full-test] [--patch-branch <branch>]
+  bash sync.sh [--publish] [--full-test] [--patch-branch <branch>] [--backfill-branch <branch>] [--no-backfill]
 
 Options:
-  --publish               Push feature/ldap-release only when branch actually changed.
+  --publish               Push feature/ldap-release (and backfill branch) only when actually changed.
   --full-test             Run full backend test suites in contract gate stage.
   --patch-branch <name>   Use specific patch branch (default auto detect).
+  --backfill-branch <name>  Target branch for backfill (default: patch branch or feature/ldap-support).
+  --no-backfill           Disable automatic backfill.
   -h, --help              Show this help.
 EOF
 }
@@ -20,6 +22,8 @@ EOF
 PUBLISH=0
 FULL_TEST=0
 PATCH_BRANCH=""
+BACKFILL_BRANCH=""
+DO_BACKFILL=1
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -38,6 +42,18 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             shift 2
+            ;;
+        --backfill-branch)
+            BACKFILL_BRANCH="${2:-}"
+            if [[ -z "$BACKFILL_BRANCH" ]]; then
+                echo "ERROR: --backfill-branch requires a value."
+                exit 1
+            fi
+            shift 2
+            ;;
+        --no-backfill)
+            DO_BACKFILL=0
+            shift
             ;;
         -h|--help)
             usage
@@ -61,33 +77,51 @@ if [[ -n "$(git status --porcelain)" ]]; then
     exit 1
 fi
 
-echo "[1/4] preflight"
+if [[ -z "$BACKFILL_BRANCH" ]]; then
+    if [[ -n "$PATCH_BRANCH" ]]; then
+        BACKFILL_BRANCH="$PATCH_BRANCH"
+    else
+        BACKFILL_BRANCH="feature/ldap-support"
+    fi
+fi
+
+TOTAL_STEPS=4
+if [[ "$DO_BACKFILL" -eq 1 ]]; then
+    TOTAL_STEPS=5
+fi
+
+echo "[1/${TOTAL_STEPS}] preflight"
 if [[ -n "$PATCH_BRANCH" ]]; then
     bash "$SCRIPT_DIR/upstream-preflight.sh" --patch-branch "$PATCH_BRANCH"
 else
     bash "$SCRIPT_DIR/upstream-preflight.sh"
 fi
 
-echo "[2/4] overlay"
+echo "[2/${TOTAL_STEPS}] overlay"
 if [[ -n "$PATCH_BRANCH" ]]; then
     bash "$SCRIPT_DIR/overlay-apply.sh" --patch-branch "$PATCH_BRANCH"
 else
     bash "$SCRIPT_DIR/overlay-apply.sh"
 fi
 
-echo "[3/4] generated repair"
+echo "[3/${TOTAL_STEPS}] generated repair"
 bash "$SCRIPT_DIR/generated-repair.sh"
 
-echo "[4/4] contract gate"
+echo "[4/${TOTAL_STEPS}] contract gate"
 if [[ "$FULL_TEST" -eq 1 ]]; then
     LDAP_SYNC_FULL_TESTS=1 bash "$SCRIPT_DIR/contract-gate.sh"
 else
     bash "$SCRIPT_DIR/contract-gate.sh"
 fi
 
+if [[ "$DO_BACKFILL" -eq 1 ]]; then
+    echo "[5/${TOTAL_STEPS}] backfill patch source branch (${BACKFILL_BRANCH})"
+    bash "$SCRIPT_DIR/backfill-support.sh" --release-branch feature/ldap-release --support-branch "$BACKFILL_BRANCH"
+fi
+
 if [[ "$PUBLISH" -eq 1 ]]; then
     echo "[publish] feature/ldap-release"
-    bash "$SCRIPT_DIR/publish-release.sh"
+    bash "$SCRIPT_DIR/publish-release.sh" --release-branch feature/ldap-release --also-branch "$BACKFILL_BRANCH"
 fi
 
 echo "DONE: LDAP sync workflow completed."
