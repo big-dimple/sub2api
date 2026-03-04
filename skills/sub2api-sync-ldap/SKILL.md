@@ -18,7 +18,8 @@ This runs:
 2. LDAP patch overlay
 3. generated code repair
 4. contract checks
-5. backfill patch source branch from `feature/ldap-release` (default target: `feature/ldap-support`)
+5. deploy sanity checks (compose healthcheck/data dir, Dockerfile healthcheck, setup fallback, deploy script hardening, deploy docs)
+6. backfill patch source branch from `feature/ldap-release` (default target: `feature/ldap-support`)
 
 ## Publish
 
@@ -46,6 +47,9 @@ bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --full-test
 
 # Disable backfill (not recommended)
 bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --no-backfill
+
+# Skip deploy sanity checks (not recommended)
+bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --skip-deploy-sanity
 ```
 
 ## Rules

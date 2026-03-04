@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 usage() {
     cat <<'EOF'
 Usage:
-  bash sync.sh [--publish] [--full-test] [--patch-branch <branch>] [--backfill-branch <branch>] [--no-backfill]
+  bash sync.sh [--publish] [--full-test] [--patch-branch <branch>] [--backfill-branch <branch>] [--no-backfill] [--skip-deploy-sanity]
 
 Options:
   --publish               Push feature/ldap-release (and backfill branch) only when actually changed.
@@ -15,6 +15,7 @@ Options:
   --patch-branch <name>   Use specific patch branch (default auto detect).
   --backfill-branch <name>  Target branch for backfill (default: patch branch or feature/ldap-support).
   --no-backfill           Disable automatic backfill.
+  --skip-deploy-sanity    Skip deploy consistency checks.
   -h, --help              Show this help.
 EOF
 }
@@ -24,6 +25,7 @@ FULL_TEST=0
 PATCH_BRANCH=""
 BACKFILL_BRANCH=""
 DO_BACKFILL=1
+DO_DEPLOY_SANITY=1
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -53,6 +55,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-backfill)
             DO_BACKFILL=0
+            shift
+            ;;
+        --skip-deploy-sanity)
+            DO_DEPLOY_SANITY=0
             shift
             ;;
         -h|--help)
@@ -86,36 +92,50 @@ if [[ -z "$BACKFILL_BRANCH" ]]; then
 fi
 
 TOTAL_STEPS=4
-if [[ "$DO_BACKFILL" -eq 1 ]]; then
-    TOTAL_STEPS=5
+if [[ "$DO_DEPLOY_SANITY" -eq 1 ]]; then
+    TOTAL_STEPS=$((TOTAL_STEPS + 1))
 fi
+if [[ "$DO_BACKFILL" -eq 1 ]]; then
+    TOTAL_STEPS=$((TOTAL_STEPS + 1))
+fi
+STEP=1
 
-echo "[1/${TOTAL_STEPS}] preflight"
+echo "[${STEP}/${TOTAL_STEPS}] preflight"
 if [[ -n "$PATCH_BRANCH" ]]; then
     bash "$SCRIPT_DIR/upstream-preflight.sh" --patch-branch "$PATCH_BRANCH"
 else
     bash "$SCRIPT_DIR/upstream-preflight.sh"
 fi
+STEP=$((STEP + 1))
 
-echo "[2/${TOTAL_STEPS}] overlay"
+echo "[${STEP}/${TOTAL_STEPS}] overlay"
 if [[ -n "$PATCH_BRANCH" ]]; then
     bash "$SCRIPT_DIR/overlay-apply.sh" --patch-branch "$PATCH_BRANCH"
 else
     bash "$SCRIPT_DIR/overlay-apply.sh"
 fi
+STEP=$((STEP + 1))
 
-echo "[3/${TOTAL_STEPS}] generated repair"
+echo "[${STEP}/${TOTAL_STEPS}] generated repair"
 bash "$SCRIPT_DIR/generated-repair.sh"
+STEP=$((STEP + 1))
 
-echo "[4/${TOTAL_STEPS}] contract gate"
+echo "[${STEP}/${TOTAL_STEPS}] contract gate"
 if [[ "$FULL_TEST" -eq 1 ]]; then
     LDAP_SYNC_FULL_TESTS=1 bash "$SCRIPT_DIR/contract-gate.sh"
 else
     bash "$SCRIPT_DIR/contract-gate.sh"
 fi
+STEP=$((STEP + 1))
+
+if [[ "$DO_DEPLOY_SANITY" -eq 1 ]]; then
+    echo "[${STEP}/${TOTAL_STEPS}] deploy sanity"
+    bash "$SCRIPT_DIR/deploy-sanity.sh"
+    STEP=$((STEP + 1))
+fi
 
 if [[ "$DO_BACKFILL" -eq 1 ]]; then
-    echo "[5/${TOTAL_STEPS}] backfill patch source branch (${BACKFILL_BRANCH})"
+    echo "[${STEP}/${TOTAL_STEPS}] backfill patch source branch (${BACKFILL_BRANCH})"
     bash "$SCRIPT_DIR/backfill-support.sh" --release-branch feature/ldap-release --support-branch "$BACKFILL_BRANCH"
 fi
 
