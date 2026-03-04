@@ -11,7 +11,7 @@
 #   docker-compose -f docker-compose.local.yml up -d
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -45,9 +45,61 @@ generate_secret() {
     openssl rand -hex 32
 }
 
+generate_admin_password() {
+    openssl rand -base64 24 | tr -d '/+=' | cut -c1-20
+}
+
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+init_directory_permissions() {
+    chmod 775 data postgres_data redis_data 2>/dev/null || true
+
+    if [ "$(id -u)" -eq 0 ]; then
+        # sub2api app runs as 1000:1000
+        chown -R 1000:1000 data || true
+        # postgres:18-alpine default uid/gid
+        chown -R 70:70 postgres_data || true
+        # redis:8-alpine commonly runs as uid 999
+        chown -R 999:1000 redis_data || true
+        print_success "Initialized data directory ownership for container users"
+    else
+        print_warning "Running as non-root; skipped chown. If startup fails, fix directory ownership manually."
+    fi
+}
+
+run_self_check_snapshot() {
+    print_info "Running post-script self-check snapshot..."
+
+    if ! command_exists docker; then
+        print_warning "docker command not found; skipping self-check."
+        return 0
+    fi
+
+    if docker compose -f docker-compose.local.yml ps >/tmp/sub2api-compose-ps.log 2>&1; then
+        cat /tmp/sub2api-compose-ps.log
+    else
+        print_warning "docker compose ps failed (containers may not be started yet)."
+        cat /tmp/sub2api-compose-ps.log || true
+    fi
+
+    if docker compose -f docker-compose.local.yml logs --tail=120 sub2api >/tmp/sub2api-compose-logs.log 2>&1; then
+        cat /tmp/sub2api-compose-logs.log
+    else
+        print_warning "docker compose logs failed (sub2api may not be running yet)."
+        cat /tmp/sub2api-compose-logs.log || true
+    fi
+
+    if grep -Eqi "permission denied|/app/data.*(read-only|not writable)|open /app/data/config\\.yaml" /tmp/sub2api-compose-logs.log 2>/dev/null; then
+        print_warning "Detected possible data directory permission issue. Ensure data is writable by uid=1000."
+    fi
+    if grep -Eqi "curl: not found|wget: not found|healthcheck.*not found" /tmp/sub2api-compose-logs.log 2>/dev/null; then
+        print_warning "Detected possible healthcheck command mismatch. Check image and compose healthcheck command consistency."
+    fi
+
+    rm -f /tmp/sub2api-compose-ps.log /tmp/sub2api-compose-logs.log
 }
 
 # Main installation function
@@ -104,6 +156,7 @@ main() {
     JWT_SECRET=$(generate_secret)
     TOTP_ENCRYPTION_KEY=$(generate_secret)
     POSTGRES_PASSWORD=$(generate_secret)
+    ADMIN_PASSWORD=$(generate_admin_password)
 
     # Create .env from .env.example
     cp .env.example .env
@@ -114,16 +167,22 @@ main() {
         sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${JWT_SECRET}/" .env
         sed -i "s/^TOTP_ENCRYPTION_KEY=.*/TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}/" .env
         sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env
+        sed -i "s/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=${ADMIN_PASSWORD}/" .env
     else
         # BSD sed (macOS)
         sed -i '' "s/^JWT_SECRET=.*/JWT_SECRET=${JWT_SECRET}/" .env
         sed -i '' "s/^TOTP_ENCRYPTION_KEY=.*/TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}/" .env
         sed -i '' "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env
+        sed -i '' "s/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=${ADMIN_PASSWORD}/" .env
+    fi
+    if ! grep -q "^ADMIN_PASSWORD=" .env; then
+        echo "ADMIN_PASSWORD=${ADMIN_PASSWORD}" >> .env
     fi
 
     # Create data directories
     print_info "Creating data directories..."
     mkdir -p data postgres_data redis_data
+    init_directory_permissions
     print_success "Created data directories"
 
     # Set secure permissions for .env file (readable/writable only by owner)
@@ -139,6 +198,7 @@ main() {
     echo "  POSTGRES_PASSWORD:     ${POSTGRES_PASSWORD}"
     echo "  JWT_SECRET:            ${JWT_SECRET}"
     echo "  TOTP_ENCRYPTION_KEY:   ${TOTP_ENCRYPTION_KEY}"
+    echo "  ADMIN_PASSWORD:        ${ADMIN_PASSWORD}"
     echo ""
     print_warning "These credentials have been saved to .env file."
     print_warning "Please keep them secure and do not share publicly!"
@@ -162,9 +222,11 @@ main() {
     echo "  4. Access Web UI:"
     echo "     http://localhost:8080"
     echo ""
-    print_info "If admin password is not set in .env, it will be auto-generated."
-    print_info "Check logs for the generated admin password on first startup."
+    print_info "Admin password has been written into .env as ADMIN_PASSWORD."
+    print_info "You can login directly with ADMIN_EMAIL/ADMIN_PASSWORD after startup."
     echo ""
+
+    run_self_check_snapshot
 }
 
 # Run main function

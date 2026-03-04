@@ -344,6 +344,9 @@ var ProviderSet = wire.NewSet(
 	NewAccountUsageService,
 	NewAccountTestService,
 	ProvideSettingService,
+	NewSoraS3Storage,
+	NewSoraGenerationService,
+	NewSoraQuotaService,
 	NewDataManagementService,
 	ProvideOpsSystemLogSink,
 	NewOpsService,
@@ -380,4 +383,5 @@ var ProviderSet = wire.NewSet(
 	ProvideIdempotencyCoordinator,
 	ProvideSystemOperationLockService,
 	ProvideIdempotencyCleanupService,
+	ProviderSetExternalAuth,
 )

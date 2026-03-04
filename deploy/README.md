@@ -16,6 +16,7 @@ This directory contains files for deploying Sub2API on Linux servers.
 | `docker-compose.yml` | Docker Compose configuration (named volumes) |
 | `docker-compose.local.yml` | Docker Compose configuration (local directories, easy migration) |
 | `docker-deploy.sh` | **One-click Docker deployment script (recommended)** |
+| `README_LDAP_ENTERPRISE.md` | 企业 LDAP 分支部署与升级/回滚手册（中文） |
 | `.env.example` | Docker environment variables template |
 | `DOCKER.md` | Docker Hub documentation |
 | `install.sh` | One-click binary installation script |
@@ -46,9 +47,10 @@ chmod +x docker-deploy.sh
 **What the script does:**
 - Downloads `docker-compose.local.yml` and `.env.example`
 - Automatically generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
+- Generates and writes `ADMIN_PASSWORD` into `.env`
 - Creates `.env` file with generated secrets
-- Creates necessary data directories (data/, postgres_data/, redis_data/)
-- **Displays generated credentials** (POSTGRES_PASSWORD, JWT_SECRET, etc.)
+- Creates necessary data directories (data/, postgres_data/, redis_data/) and initializes permissions
+- **Displays generated credentials** (POSTGRES_PASSWORD, JWT_SECRET, ADMIN_PASSWORD, etc.)
 
 **After running the script:**
 ```bash
@@ -86,6 +88,9 @@ echo "TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}" >> .env
 
 # Create data directories
 mkdir -p data postgres_data redis_data
+# Initialize directory permissions (avoid /app/data not writable on first boot)
+sudo chown -R 1000:1000 data
+sudo chmod 775 data
 
 # Start all services using local directory version
 docker-compose -f docker-compose.local.yml up -d

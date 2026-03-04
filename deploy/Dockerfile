@@ -61,8 +61,7 @@ COPY backend/ ./
 COPY --from=frontend-builder /app/backend/internal/web/dist ./internal/web/dist
 
 # Build the binary (BuildType=release for CI builds, embed frontend)
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -tags embed \
+RUN CGO_ENABLED=0 GOOS=linux go build -tags "embed ldap" \
     -ldflags="-s -w -X main.Commit=${COMMIT} -X main.Date=${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)} -X main.BuildType=release" \
     -o /app/sub2api \
     ./cmd/server
@@ -81,7 +80,6 @@ LABEL org.opencontainers.image.source="https://github.com/Wei-Shaw/sub2api"
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
-    curl \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
@@ -105,7 +103,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:${SERVER_PORT:-8080}/health || exit 1
+    CMD wget -q -T 5 -O /dev/null http://localhost:${SERVER_PORT:-8080}/health || exit 1
 
 # Run the application
 ENTRYPOINT ["/app/sub2api"]
