@@ -47,6 +47,11 @@ cd /path/to/sub2api/deploy
 bash upgrade_ldap_prod.sh
 ```
 
+说明：
+- 脚本会先强制备份（`.env`、`config.yaml`、PostgreSQL SQL 导出、卷目录归档），备份成功后才会继续升级。
+- 默认拉取并发布 `feature/ldap-release`。
+- 如需临时切换分支，可使用：`bash upgrade_ldap_prod.sh --branch <branch>`
+
 ---
 
 ## 3. 回滚（数据库恢复）
@@ -76,4 +81,3 @@ docker build -t weishaw/sub2api:latest .
 cd deploy
 docker compose -f docker-compose.local.yml up -d --no-deps sub2api
 ```
-

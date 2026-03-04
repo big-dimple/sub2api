@@ -1,73 +1,328 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Sub2API 企业 LDAP 版 - 生产环境安全升级脚本
-# 用途：供 IT 部门在服务器上一键备份数据、获取最新代码、重构镜像并平滑重启。
-# 要求：请在 sub2api/deploy 目录下执行此脚本。
+#
+# 用法：
+#   升级（强制备份）:
+#     bash upgrade_ldap_prod.sh
+#   恢复最近一次备份:
+#     bash upgrade_ldap_prod.sh --restore latest
+#   恢复指定备份目录:
+#     bash upgrade_ldap_prod.sh --restore ../backups/backup_YYYYMMDD_HHMMSS
+#
+# 可选参数：
+#   --branch <branch>           默认 feature/ldap-release
+#   --compose-file <file>       默认优先 docker-compose.local.yml，否则 docker-compose.yml
+#   --image <image:tag>         默认 weishaw/sub2api:latest
 
-set -e
+set -euo pipefail
 
-# --- 1. 环境检查 ---
-echo "🔍 [1/5] 环境检查..."
-if [ ! -f "docker-compose.yml" ] && [ ! -f "docker-compose.local.yml" ]; then
-    echo "❌ 错误: 找不到 docker-compose 文件，请确保在 sub2api/deploy 目录下运行！"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+DEPLOY_DIR="${SCRIPT_DIR}"
+ENV_FILE="${DEPLOY_DIR}/.env"
+
+TARGET_BRANCH="feature/ldap-release"
+IMAGE_TAG="weishaw/sub2api:latest"
+COMPOSE_FILE=""
+RESTORE_TARGET=""
+BACKUP_DIR=""
+HEALTH_TIMEOUT_SECONDS=90
+
+usage() {
+    cat <<'EOF'
+Sub2API LDAP Upgrade Script
+
+Usage:
+  bash upgrade_ldap_prod.sh [--branch <branch>] [--compose-file <file>] [--image <image:tag>]
+  bash upgrade_ldap_prod.sh --restore latest
+  bash upgrade_ldap_prod.sh --restore <backup_dir>
+
+Examples:
+  bash upgrade_ldap_prod.sh
+  bash upgrade_ldap_prod.sh --restore latest
+  bash upgrade_ldap_prod.sh --restore ../backups/backup_20260304_120000
+  bash upgrade_ldap_prod.sh --branch feature/ldap-release
+EOF
+}
+
+log() {
+    echo "$*"
+}
+
+die() {
+    echo "ERROR: $*" >&2
     exit 1
-fi
-# 优先使用 local 配置文件（如果您在生产用的是 local）
-COMPOSE_FILE="docker-compose.local.yml"
-[ ! -f "$COMPOSE_FILE" ] && COMPOSE_FILE="docker-compose.yml"
-echo "✅ 使用配置文件: $COMPOSE_FILE"
+}
 
-# --- 2. 数据备份 ---
-BACKUP_DIR="../backups/backup_$(date +%Y%m%d_%H%M%S)"
-echo "📦 [2/5] 开始备份数据至 $BACKUP_DIR ..."
-mkdir -p "$BACKUP_DIR"
+read_env() {
+    local key="$1"
+    local default_value="$2"
+    local value=""
 
-# 备份配置文件
-[ -f ".env" ] && cp .env "$BACKUP_DIR/"
-[ -f "config.yaml" ] && cp config.yaml "$BACKUP_DIR/"
-
-# 备份数据库 (PostgreSQL 逻辑备份，最安全)
-echo "   正在导出 PostgreSQL 数据库..."
-if docker compose -f "$COMPOSE_FILE" ps | grep -q "postgres"; then
-    DB_USER=$(grep "POSTGRES_USER=" "$ENV_FILE" | cut -d'=' -f2)
-    [ -z "$DB_USER" ] && DB_USER="sub2api"
-    docker exec sub2api-postgres pg_dump -U "$DB_USER" sub2api > "$BACKUP_DIR/sub2api_db.sql" || echo "⚠️ 数据库导出可能不完整，请检查运行状态。"
-else
-    echo "⚠️ PostgreSQL 容器未运行，跳过数据库逻辑备份。"
-fi
-
-# 备份物理目录 (可选，仅作双重保险)
-echo "   正在打包本地数据目录..."
-tar -czf "$BACKUP_DIR/volumes_data.tar.gz" data/ postgres_data/ redis_data/ 2>/dev/null || true
-echo "✅ 备份完成！备份文件保存在: $BACKUP_DIR"
-
-# --- 3. 更新代码与镜像 ---
-echo "⬇️ [3/5] 更新代码与构建镜像..."
-cd ..
-git fetch origin feature/ldap-support
-git checkout feature/ldap-support
-git pull origin feature/ldap-support
-
-echo "🏗️ 正在基于最新代码构建镜像 (包含华为云优化)..."
-docker build -t weishaw/sub2api:latest .
-cd deploy
-
-# --- 4. 平滑升级 ---
-echo "🔄 [4/5] 重建应用容器..."
-# 仅重建应用容器，不重启 DB 和 Redis 以减少中断
-docker compose -f "$COMPOSE_FILE" up -d --no-deps --build sub2api
-
-# --- 5. 验证状态 ---
-echo "🩺 [5/5] 等待服务就绪并执行健康检查..."
-sleep 10
-if curl -sS http://127.0.0.1:8080/health | grep -q "ok"; then
-    echo "🎉 升级成功！服务运行正常。"
-else
-    if curl -sS http://127.0.0.1:8081/health | grep -q "ok"; then
-         echo "🎉 升级成功！服务运行正常 (端口 8081)。"
-    else
-        echo "❌ 警告: 健康检查失败或服务仍在启动中。"
-        echo "回滚指南:"
-        echo "1. 查看日志: docker compose -f $COMPOSE_FILE logs --tail=50 sub2api"
-        echo "2. 如果需要回滚数据库，请使用刚才备份的: $BACKUP_DIR/sub2api_db.sql"
+    if [[ -f "$ENV_FILE" ]]; then
+        value="$(grep -E "^${key}=" "$ENV_FILE" | tail -n 1 | cut -d'=' -f2- || true)"
+        value="${value%$'\r'}"
+        value="${value%\"}"
+        value="${value#\"}"
+        value="${value%\'}"
+        value="${value#\'}"
     fi
+
+    if [[ -z "$value" ]]; then
+        echo "$default_value"
+    else
+        echo "$value"
+    fi
+}
+
+detect_compose_file() {
+    if [[ -n "$COMPOSE_FILE" ]]; then
+        [[ -f "$COMPOSE_FILE" ]] || die "compose file not found: $COMPOSE_FILE"
+        return
+    fi
+
+    if [[ -f "docker-compose.local.yml" ]]; then
+        COMPOSE_FILE="docker-compose.local.yml"
+    elif [[ -f "docker-compose.yml" ]]; then
+        COMPOSE_FILE="docker-compose.yml"
+    else
+        die "cannot find docker-compose.local.yml or docker-compose.yml in deploy directory."
+    fi
+}
+
+get_postgres_container() {
+    local cid
+    cid="$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null || true)"
+    [[ -n "$cid" ]] || die "cannot find postgres container from compose file: $COMPOSE_FILE"
+    echo "$cid"
+}
+
+ensure_postgres_ready() {
+    local db_user="$1"
+    local db_name="$2"
+    local cid
+    local tries=30
+
+    docker compose -f "$COMPOSE_FILE" up -d postgres >/dev/null
+    cid="$(get_postgres_container)"
+
+    while (( tries > 0 )); do
+        if docker exec "$cid" pg_isready -U "$db_user" -d "$db_name" >/dev/null 2>&1; then
+            return 0
+        fi
+        tries=$((tries - 1))
+        sleep 2
+    done
+
+    die "postgres is not ready."
+}
+
+probe_health() {
+    local url="$1"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsS --max-time 3 "$url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- --timeout=3 "$url"
+    else
+        return 1
+    fi
+}
+
+wait_for_health() {
+    local configured_port
+    configured_port="$(read_env SERVER_PORT "8080")"
+    local ports=("$configured_port")
+    local deadline=$((SECONDS + HEALTH_TIMEOUT_SECONDS))
+
+    if [[ "$configured_port" != "8080" ]]; then
+        ports+=("8080")
+    fi
+    if [[ "$configured_port" != "8081" ]]; then
+        ports+=("8081")
+    fi
+
+    while (( SECONDS < deadline )); do
+        for port in "${ports[@]}"; do
+            local resp
+            resp="$(probe_health "http://127.0.0.1:${port}/health" 2>/dev/null || true)"
+            if [[ "$resp" == *"ok"* || "$resp" == *"OK"* ]]; then
+                log "OK: health check passed on port ${port}."
+                return 0
+            fi
+        done
+        sleep 3
+    done
+
+    return 1
+}
+
+print_failure_hints() {
+    log "WARN: health check failed. Please inspect containers and logs."
+    docker compose -f "$COMPOSE_FILE" ps || true
+    docker compose -f "$COMPOSE_FILE" logs --tail=80 sub2api || true
+    if [[ -n "$BACKUP_DIR" ]]; then
+        log "Backup path: ${BACKUP_DIR}"
+    fi
+}
+
+perform_backup() {
+    BACKUP_DIR="../backups/backup_$(date +%Y%m%d_%H%M%S)"
+    local db_user
+    local db_name
+    local pg_container
+    local backup_sql
+
+    db_user="$(read_env POSTGRES_USER "sub2api")"
+    db_name="$(read_env POSTGRES_DB "sub2api")"
+
+    log "[1/5] Creating backup at ${BACKUP_DIR} ..."
+    mkdir -p "$BACKUP_DIR"
+    [[ -f ".env" ]] && cp ".env" "$BACKUP_DIR/"
+    [[ -f "config.yaml" ]] && cp "config.yaml" "$BACKUP_DIR/"
+
+    ensure_postgres_ready "$db_user" "$db_name"
+    pg_container="$(get_postgres_container)"
+    backup_sql="${BACKUP_DIR}/sub2api_db.sql"
+
+    log "Exporting PostgreSQL (${db_name}) ..."
+    if ! docker exec "$pg_container" pg_dump --clean --if-exists -U "$db_user" "$db_name" > "$backup_sql"; then
+        die "database backup failed, upgrade aborted."
+    fi
+    [[ -s "$backup_sql" ]] || die "database backup file is empty, upgrade aborted."
+
+    log "Archiving volume directories (optional) ..."
+    tar -czf "${BACKUP_DIR}/volumes_data.tar.gz" data/ postgres_data/ redis_data/ 2>/dev/null || true
+
+    log "OK: backup completed -> ${BACKUP_DIR}"
+}
+
+resolve_restore_dir() {
+    local target="$1"
+    if [[ "$target" == "latest" ]]; then
+        local latest
+        latest="$(ls -dt ../backups/backup_* 2>/dev/null | head -n 1 || true)"
+        [[ -n "$latest" ]] || die "no backup found under ../backups."
+        echo "$latest"
+        return
+    fi
+    echo "$target"
+}
+
+restore_database() {
+    local requested="$1"
+    local restore_dir
+    local backup_sql
+    local db_user
+    local db_name
+    local pg_container
+
+    restore_dir="$(resolve_restore_dir "$requested")"
+    [[ -d "$restore_dir" ]] || die "backup directory not found: $restore_dir"
+    backup_sql="${restore_dir}/sub2api_db.sql"
+    [[ -s "$backup_sql" ]] || die "backup SQL not found or empty: $backup_sql"
+
+    db_user="$(read_env POSTGRES_USER "sub2api")"
+    db_name="$(read_env POSTGRES_DB "sub2api")"
+
+    log "[restore] Using backup: ${restore_dir}"
+    ensure_postgres_ready "$db_user" "$db_name"
+    pg_container="$(get_postgres_container)"
+
+    log "[restore] Restoring database ${db_name} ..."
+    if ! docker exec -i "$pg_container" psql -v ON_ERROR_STOP=1 -U "$db_user" -d "$db_name" < "$backup_sql"; then
+        die "database restore failed."
+    fi
+
+    log "[restore] Restarting sub2api application container ..."
+    docker compose -f "$COMPOSE_FILE" up -d --no-deps sub2api
+
+    if wait_for_health; then
+        log "OK: restore completed successfully."
+        docker compose -f "$COMPOSE_FILE" ps
+    else
+        print_failure_hints
+        die "restore finished but health check failed."
+    fi
+}
+
+prepare_repo() {
+    cd "$PROJECT_ROOT"
+    git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "project root is not a git repository: $PROJECT_ROOT"
+    if [[ -n "$(git status --porcelain)" ]]; then
+        die "git worktree is dirty in ${PROJECT_ROOT}; commit/stash changes before upgrade."
+    fi
+}
+
+upgrade_flow() {
+    perform_backup
+    prepare_repo
+
+    log "[2/5] Syncing source branch ${TARGET_BRANCH} ..."
+    git fetch origin "$TARGET_BRANCH"
+
+    if git show-ref --verify --quiet "refs/heads/${TARGET_BRANCH}"; then
+        git switch "$TARGET_BRANCH"
+    else
+        git switch -c "$TARGET_BRANCH" --track "origin/${TARGET_BRANCH}"
+    fi
+    git pull --ff-only origin "$TARGET_BRANCH"
+
+    log "[3/5] Building image ${IMAGE_TAG} ..."
+    docker build -t "$IMAGE_TAG" .
+
+    log "[4/5] Recreating sub2api container ..."
+    cd "$DEPLOY_DIR"
+    docker compose -f "$COMPOSE_FILE" up -d --no-deps --build sub2api
+
+    log "[5/5] Waiting for service health ..."
+    if wait_for_health; then
+        log "OK: upgrade completed successfully."
+        log "Backup path: ${BACKUP_DIR}"
+        docker compose -f "$COMPOSE_FILE" ps
+    else
+        print_failure_hints
+        die "upgrade failed after deployment."
+    fi
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --restore)
+            RESTORE_TARGET="${2:-}"
+            [[ -n "$RESTORE_TARGET" ]] || die "--restore requires a value: latest or backup path."
+            shift 2
+            ;;
+        --branch)
+            TARGET_BRANCH="${2:-}"
+            [[ -n "$TARGET_BRANCH" ]] || die "--branch requires a value."
+            shift 2
+            ;;
+        --compose-file)
+            COMPOSE_FILE="${2:-}"
+            [[ -n "$COMPOSE_FILE" ]] || die "--compose-file requires a value."
+            shift 2
+            ;;
+        --image)
+            IMAGE_TAG="${2:-}"
+            [[ -n "$IMAGE_TAG" ]] || die "--image requires a value."
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            die "unknown argument: $1"
+            ;;
+    esac
+done
+
+cd "$DEPLOY_DIR"
+detect_compose_file
+log "Using compose file: ${COMPOSE_FILE}"
+
+if [[ -n "$RESTORE_TARGET" ]]; then
+    restore_database "$RESTORE_TARGET"
+else
+    upgrade_flow
 fi

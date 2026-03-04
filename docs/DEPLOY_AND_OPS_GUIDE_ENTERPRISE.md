@@ -15,7 +15,7 @@
 ```bash
 git clone git@github.com:big-dimple/sub2api.git
 cd sub2api
-git checkout feature/ldap-support
+git checkout feature/ldap-release
 ```
 
 ### 2. 准备配置与挂载目录
@@ -24,6 +24,9 @@ cd deploy
 
 # 创建数据挂载目录 (供 Postgres 和 Redis 使用)
 mkdir -p data postgres_data redis_data
+# 关键：避免 /app/data 无写权限导致容器重启
+sudo chown -R 1000:1000 data
+sudo chmod 775 data
 
 # 基于示例生成真实配置文件
 cp .env.example .env
@@ -80,7 +83,7 @@ bash upgrade_ldap_prod.sh
 
 **该脚本会在后台全自动、安全地执行以下流程：**
 1. **自动备份**：将 `docker-compose` 相关的配置文件，以及最核心的 **PostgreSQL 数据库** 导出为 SQL 备份文件（安全存放在 `../backups/` 目录下）。
-2. **代码拉取**：自动从企业分支 `feature/ldap-support` 获取包含了最新补丁的代码。
+2. **代码拉取**：自动从企业发布分支 `feature/ldap-release` 获取包含了最新补丁的代码。
 3. **静默重构**：利用服务器本地环境和华为云加速源，重新构建带有 LDAP 功能的最新镜像。
 4. **平滑重启**：仅重建 `sub2api` 应用容器，**不断开**数据库和缓存，将升级导致的服务中断时间降至最低（通常 < 5秒）。
 5. **智能验证**：启动后自动请求健康检查接口，若启动失败，终端会直接输出日志查看方法和数据回滚指南。
@@ -90,7 +93,9 @@ bash upgrade_ldap_prod.sh
 ### ❓ 附：灾难回滚指南
 如果在执行升级脚本后发现系统无法访问或状态异常，请按以下步骤回滚：
 1. **查看报错**：运行 `docker compose -f docker-compose.local.yml logs --tail=100 sub2api` 定位问题。
-2. **恢复数据库**：若因表结构不兼容导致崩溃，请找到部署目录同级的 `backups/` 文件夹中最近的 `sub2api_db.sql`，执行导入恢复。
+2. **恢复数据库（推荐脚本化）**：
+   - 恢复最近一次备份：`bash upgrade_ldap_prod.sh --restore latest`
+   - 恢复指定备份目录：`bash upgrade_ldap_prod.sh --restore ../backups/backup_YYYYMMDD_HHMMSS`
 3. **镜像回退**：如有必要，可修改 `docker-compose.local.yml` 中的 `image` 标签退回旧版并重新 `up -d`。
 
 > *如有关于 LDAP 属性映射或配置的问题，请随时与研发团队联系。*
