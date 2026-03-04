@@ -16,7 +16,7 @@
 - `frontend/src/api/admin/settings.ts`
 - `frontend/src/stores/app.ts`
 - `frontend/src/stores/adminSettings.ts`
-- `/root/.gemini/skills/sub2api-sync-ldap/scripts/sync.sh`
+- `/root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh`
 
 ## Current Repo Signals
 - `go test ./internal/server/routes -run TestNonExistent` fails.

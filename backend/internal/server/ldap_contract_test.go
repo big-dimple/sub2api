@@ -115,6 +115,7 @@ func TestLDAPLoginContract(t *testing.T) {
 		nil, // turnstileService
 		nil, // emailQueueService
 		nil, // promoService
+		nil, // defaultSubAssigner
 	)
 
 	// 2. 初始化路由

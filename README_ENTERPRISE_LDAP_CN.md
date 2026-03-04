@@ -114,15 +114,18 @@ apt-get install -y docker.io docker-compose-plugin openssl curl git ca-certifica
 
 ### 10.3 IT/AI 同步指令（标准流程）
 
-本项目已配备全自动的**弹性同步工作流**（基于 Gemini CLI Skill 机制）。新接手的 AI 或研发人员只需运行以下入口脚本，流水线将依次进行预检、合并、构建修复与契约测试。
+本项目已配备全自动的 LDAP 同步工作流（基于 Codex Skill 机制）。新接手的 AI 或研发人员只需运行以下入口脚本。
 
 **给 AI 或 IT 的一键指令：**
 ```text
-请在 sub2api 项目根目录执行 LDAP skill 的主控脚本，并按失败阶段自动修复直到 contract-gate 全绿：
-bash /root/.gemini/skills/sub2api-sync-ldap/scripts/sync.sh
+请在 sub2api 项目根目录执行 LDAP skill 主控脚本，完成官方代码同步、LDAP补丁叠加、生成修复与回归检查：
+bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh
 ```
 
-如果遇到红色重构级别冲突导致脚本中断，请让 AI 根据控制台的 `👉 AI 操作指南` 接管后续的修复与代码生成，直至所有契约测试（`contract-gate.sh`）通过。
+若本机尚未安装 Codex skill，可直接执行仓库同源脚本：
+`bash skills/sub2api-sync-ldap/scripts/sync.sh`
+
+如果脚本中断，请让 AI 继续在当前分支修复并重新执行同一入口脚本，直到结束成功提示。
 
 ### 10.4 最终合并与推送
 一旦同步流水线（包含四个阶段）全绿通过，产物将被放置在 `feature/ldap-release` 分支。

@@ -922,6 +922,8 @@ func equalDefaultSubscriptions(a, b []service.DefaultSubscriptionSetting) bool {
 		}
 	}
 	return true
+}
+
 func toDTOLDAPGroupMappings(in []service.LDAPGroupMapping) []dto.LDAPGroupMapping {
 	out := make([]dto.LDAPGroupMapping, 0, len(in))
 	for _, item := range in {
