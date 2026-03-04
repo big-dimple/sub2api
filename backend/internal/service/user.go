@@ -11,6 +11,7 @@ type User struct {
 	Email         string
 	Username      string
 	Notes         string
+	AuthSource    string
 	PasswordHash  string
 	Role          string
 	Balance       float64

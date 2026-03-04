@@ -29,6 +29,29 @@ type SystemSettings struct {
 	LinuxDoConnectClientSecretConfigured bool
 	LinuxDoConnectRedirectURL            string
 
+	// LDAP/AD identity integration
+	LDAPEnabled                bool
+	LDAPHost                   string
+	LDAPPort                   int
+	LDAPUseTLS                 bool
+	LDAPStartTLS               bool
+	LDAPInsecureSkipVerify     bool
+	LDAPBindDN                 string
+	LDAPBindPassword           string
+	LDAPBindPasswordConfigured bool
+	LDAPUserBaseDN             string
+	LDAPUserFilter             string
+	LDAPLoginAttr              string
+	LDAPUIDAttr                string
+	LDAPEmailAttr              string
+	LDAPDisplayNameAttr        string
+	LDAPDepartmentAttr         string
+	LDAPGroupAttr              string
+	LDAPAllowedGroupDNs        []string
+	LDAPGroupMappings          []LDAPGroupMapping
+	LDAPSyncEnabled            bool
+	LDAPSyncIntervalMinutes    int
+
 	SiteName                    string
 	SiteLogo                    string
 	SiteSubtitle                string
@@ -99,6 +122,7 @@ type PublicSettings struct {
 	CustomMenuItems             string // JSON array of custom menu items
 
 	LinuxDoOAuthEnabled bool
+	LDAPEnabled         bool
 	Version             string
 }
 

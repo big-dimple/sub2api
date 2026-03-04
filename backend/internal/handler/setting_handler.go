@@ -53,6 +53,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		CustomMenuItems:             dto.ParseUserVisibleMenuItems(settings.CustomMenuItems),
 		LinuxDoOAuthEnabled:         settings.LinuxDoOAuthEnabled,
 		SoraClientEnabled:           settings.SoraClientEnabled,
+		LDAPEnabled:                 settings.LDAPEnabled,
 		Version:                     h.version,
 	})
 }
