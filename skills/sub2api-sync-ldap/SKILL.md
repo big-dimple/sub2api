@@ -56,4 +56,4 @@ bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --skip-deploy-sanity
 
 1. keep worktree clean before running
 2. do not commit backups or package-manager cache
-3. if overlay conflicts, resolve conflict in `feature/ldap-release` then rerun `sync.sh`
+3. if overlay conflicts, resolve conflict in `feature/ldap-release`, commit, then continue `generated-repair.sh` -> `contract-gate.sh` -> `backfill-support.sh` -> publish

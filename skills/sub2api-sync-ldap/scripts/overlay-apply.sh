@@ -76,6 +76,12 @@ if git merge-base --is-ancestor "$PATCH_BRANCH" HEAD; then
     exit 0
 fi
 
+if git merge-base --is-ancestor HEAD "$PATCH_BRANCH"; then
+    echo "OK: patch branch already contains upstream base; fast-forward release to patch."
+    git switch -C feature/ldap-release "$PATCH_BRANCH" >/dev/null
+    exit 0
+fi
+
 echo "Merge patch branch: ${PATCH_BRANCH}"
 if git merge --no-ff "$PATCH_BRANCH" -m "Merge LDAP patch (${PATCH_BRANCH}) into release"; then
     echo "OK: overlay merge completed."
