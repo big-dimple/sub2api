@@ -86,7 +86,15 @@ echo "Merge patch branch: ${PATCH_BRANCH}"
 if git merge --no-ff "$PATCH_BRANCH" -m "Merge LDAP patch (${PATCH_BRANCH}) into release"; then
     echo "OK: overlay merge completed."
 else
+    echo "WARN: merge conflicts detected on feature/ldap-release, try known auto-resolutions."
+    if bash "$SCRIPT_DIR/auto-resolve-wire-conflicts.sh"; then
+        if [[ -z "$(git diff --name-only --diff-filter=U)" ]]; then
+            git commit --no-edit >/dev/null
+            echo "OK: overlay merge completed with auto-resolved provider conflicts."
+            exit 0
+        fi
+    fi
     echo "ERROR: merge conflicts detected on feature/ldap-release."
-    echo "Resolve conflicts, commit, then rerun sync.sh."
+    echo "Resolve conflicts, commit, then continue generated-repair.sh -> contract-gate.sh -> backfill-support.sh."
     exit 1
 fi

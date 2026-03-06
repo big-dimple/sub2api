@@ -253,7 +253,28 @@ prepare_repo() {
     fi
 }
 
+detect_build_version() {
+    local version_file="${PROJECT_ROOT}/backend/cmd/server/VERSION"
+    local latest_tag=""
+
+    latest_tag="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)"
+    if [[ -n "$latest_tag" ]]; then
+        echo "${latest_tag#v}"
+        return
+    fi
+
+    if [[ -f "$version_file" ]]; then
+        tr -d '\r\n' < "$version_file"
+        return
+    fi
+
+    echo "0.0.0-dev"
+}
+
 upgrade_flow() {
+    local build_commit
+    local build_version
+
     perform_backup
     prepare_repo
 
@@ -267,8 +288,14 @@ upgrade_flow() {
     fi
     git pull --ff-only origin "$TARGET_BRANCH"
 
-    log "[3/5] Building image ${IMAGE_TAG} ..."
-    docker build -t "$IMAGE_TAG" .
+    build_version="$(detect_build_version)"
+    build_commit="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
+    log "[3/5] Building image ${IMAGE_TAG} (version ${build_version}, commit ${build_commit}) ..."
+    docker build \
+        --build-arg VERSION="$build_version" \
+        --build-arg COMMIT="$build_commit" \
+        -t "$IMAGE_TAG" .
 
     log "[4/5] Recreating sub2api container ..."
     cd "$DEPLOY_DIR"
