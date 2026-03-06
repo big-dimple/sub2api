@@ -50,10 +50,14 @@ func ProvideSessionLimitCache(rdb *redis.Client, cfg *config.Config) service.Ses
 // ProviderSet is the Wire provider set for all repositories
 var ProviderSet = wire.NewSet(
 	NewUserRepository,
+	wire.Bind(new(service.UserRepository), new(*userRepository)),
+	wire.Bind(new(service.LDAPUserRepository), new(*userRepository)),
 	NewAPIKeyRepository,
 	NewGroupRepository,
 	NewAccountRepository,
-	NewSoraAccountRepository,         // Sora 账号扩展表仓储
+	NewSoraAccountRepository, // Sora 账号扩展表仓储
+	NewSoraGenerationRepository, // Sora 生成任务仓储
+	NewSoraGenerationRepository, // Sora 生成任务仓储
 	NewScheduledTestPlanRepository,   // 定时测试计划仓储
 	NewScheduledTestResultRepository, // 定时测试结果仓储
 	NewProxyRepository,
