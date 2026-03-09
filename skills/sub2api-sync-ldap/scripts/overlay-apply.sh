@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 if [[ ! -f backend/internal/service/auth_service.go ]]; then
     echo "ERROR: run this script in sub2api repository root."
     exit 1
