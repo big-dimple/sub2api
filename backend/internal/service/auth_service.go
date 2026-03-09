@@ -59,6 +59,7 @@ type JWTClaims struct {
 // AuthService 认证服务
 type AuthService struct {
 	userRepo           UserRepository
+	externalAuth       ExternalAuthProvider
 	redeemRepo         RedeemCodeRepository
 	refreshTokenCache  RefreshTokenCache
 	cfg                *config.Config
@@ -77,6 +78,7 @@ type DefaultSubscriptionAssigner interface {
 // NewAuthService 创建认证服务实例
 func NewAuthService(
 	userRepo UserRepository,
+	externalAuth ExternalAuthProvider,
 	redeemRepo RedeemCodeRepository,
 	refreshTokenCache RefreshTokenCache,
 	cfg *config.Config,
@@ -89,6 +91,7 @@ func NewAuthService(
 ) *AuthService {
 	return &AuthService{
 		userRepo:           userRepo,
+		externalAuth:       externalAuth,
 		redeemRepo:         redeemRepo,
 		refreshTokenCache:  refreshTokenCache,
 		cfg:                cfg,
@@ -108,6 +111,10 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (str
 
 // RegisterWithVerification 用户注册（支持邮件验证、优惠码和邀请码），返回token和用户
 func (s *AuthService) RegisterWithVerification(ctx context.Context, email, password, verifyCode, promoCode, invitationCode string) (string, *User, error) {
+	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
+		return "", nil, infraerrors.Forbidden("LDAP_ONLY_MODE", "registration is disabled while LDAP mode is enabled")
+	}
+
 	// 检查是否开放注册（默认关闭：settingService 未配置时不允许注册）
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return "", nil, ErrRegDisabled
@@ -238,6 +245,10 @@ type SendVerifyCodeResult struct {
 
 // SendVerifyCode 发送邮箱验证码（同步方式）
 func (s *AuthService) SendVerifyCode(ctx context.Context, email string) error {
+	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
+		return ErrRegDisabled
+	}
+
 	// 检查是否开放注册（默认关闭）
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return ErrRegDisabled
@@ -277,6 +288,11 @@ func (s *AuthService) SendVerifyCode(ctx context.Context, email string) error {
 // SendVerifyCodeAsync 异步发送邮箱验证码并返回倒计时
 func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string) (*SendVerifyCodeResult, error) {
 	logger.LegacyPrintf("service.auth", "[Auth] SendVerifyCodeAsync called for email: %s", email)
+
+	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
+		logger.LegacyPrintf("service.auth", "[Auth] LDAP mode enabled, registration verification is disabled")
+		return nil, ErrRegDisabled
+	}
 
 	// 检查是否开放注册（默认关闭）
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
@@ -396,6 +412,38 @@ func (s *AuthService) IsEmailVerifyEnabled(ctx context.Context) bool {
 
 // Login 用户登录，返回JWT token
 func (s *AuthService) Login(ctx context.Context, email, password string) (string, *User, error) {
+	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
+		// 本地管理员始终允许通过本地密码登录
+		if localUser, err := s.userRepo.GetByEmail(ctx, email); err == nil && localUser.IsAdmin() {
+			if !s.CheckPassword(password, localUser.PasswordHash) {
+				return "", nil, ErrInvalidCredentials
+			}
+			if !localUser.IsActive() {
+				return "", nil, ErrUserNotActive
+			}
+			token, err := s.GenerateToken(localUser)
+			if err != nil {
+				return "", nil, fmt.Errorf("generate token: %w", err)
+			}
+			return token, localUser, nil
+		}
+
+		if s.externalAuth == nil {
+			return "", nil, ErrServiceUnavailable
+		}
+
+		user, err := s.externalAuth.Login(ctx, email, password)
+		if err != nil {
+			return "", nil, err
+		}
+		
+		token, err := s.GenerateToken(user)
+		if err != nil {
+			return "", nil, fmt.Errorf("generate token: %w", err)
+		}
+		return token, user, nil
+	}
+
 	// 查找用户
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
@@ -433,6 +481,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 // 注意：该函数用于 LinuxDo OAuth 登录场景（不同于上游账号的 OAuth，例如 Claude/OpenAI/Gemini）。
 // 为了满足现有数据库约束（需要密码哈希），新用户会生成随机密码并进行哈希保存。
 func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username string) (string, *User, error) {
+	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
+		return "", nil, infraerrors.Forbidden("LDAP_ONLY_MODE", "oauth login is disabled while LDAP mode is enabled")
+	}
+
 	email = strings.TrimSpace(email)
 	if email == "" || len(email) > 255 {
 		return "", nil, infraerrors.BadRequest("INVALID_EMAIL", "invalid email")
@@ -526,6 +578,10 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 // LoginOrRegisterOAuthWithTokenPair 用于第三方 OAuth/SSO 登录，返回完整的 TokenPair
 // 与 LoginOrRegisterOAuth 功能相同，但返回 TokenPair 而非单个 token
 func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, email, username string) (*TokenPair, *User, error) {
+	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
+		return nil, nil, infraerrors.Forbidden("LDAP_ONLY_MODE", "oauth login is disabled while LDAP mode is enabled")
+	}
+
 	// 检查 refreshTokenCache 是否可用
 	if s.refreshTokenCache == nil {
 		return nil, nil, errors.New("refresh token cache not configured")

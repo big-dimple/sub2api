@@ -104,6 +104,29 @@ const (
 	SettingKeyLinuxDoConnectClientSecret = "linuxdo_connect_client_secret"
 	SettingKeyLinuxDoConnectRedirectURL  = "linuxdo_connect_redirect_url"
 
+	// LDAP/AD 身份接入设置
+	SettingKeyLDAPEnabled             = "ldap_enabled"
+	SettingKeyLDAPHost                = "ldap_host"
+	SettingKeyLDAPPort                = "ldap_port"
+	SettingKeyLDAPUseTLS              = "ldap_use_tls"
+	SettingKeyLDAPStartTLS            = "ldap_start_tls"
+	SettingKeyLDAPInsecureSkipVerify  = "ldap_insecure_skip_verify"
+	SettingKeyLDAPBindDN              = "ldap_bind_dn"
+	SettingKeyLDAPBindPassword        = "ldap_bind_password"
+	SettingKeyLDAPUserBaseDN          = "ldap_user_base_dn"
+	SettingKeyLDAPUserFilter          = "ldap_user_filter"
+	SettingKeyLDAPLoginAttr           = "ldap_login_attr"
+	SettingKeyLDAPUIDAttr             = "ldap_uid_attr"
+	SettingKeyLDAPEmailAttr           = "ldap_email_attr"
+	SettingKeyLDAPDisplayNameAttr     = "ldap_display_name_attr"
+	SettingKeyLDAPDepartmentAttr      = "ldap_department_attr"
+	SettingKeyLDAPGroupAttr           = "ldap_group_attr"
+	SettingKeyLDAPAllowedGroupDNs     = "ldap_allowed_group_dns"
+	SettingKeyLDAPGroupMappings       = "ldap_group_mappings"
+	SettingKeyLDAPSyncEnabled         = "ldap_sync_enabled"
+	SettingKeyLDAPSyncIntervalMinutes = "ldap_sync_interval_minutes"
+	SettingKeyLDAPLastSyncAt          = "ldap_last_sync_at"
+
 	// OEM设置
 	SettingKeySoraClientEnabled           = "sora_client_enabled"           // 是否启用 Sora 客户端（管理员手动控制）
 	SettingKeySiteName                    = "site_name"                     // 网站名称

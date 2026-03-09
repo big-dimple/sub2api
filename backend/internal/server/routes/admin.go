@@ -405,6 +405,10 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.PUT("/sora-s3/profiles/:profile_id", h.Admin.Setting.UpdateSoraS3Profile)
 		adminSettings.DELETE("/sora-s3/profiles/:profile_id", h.Admin.Setting.DeleteSoraS3Profile)
 		adminSettings.POST("/sora-s3/profiles/:profile_id/activate", h.Admin.Setting.SetActiveSoraS3Profile)
+
+		// LDAP/AD 接入测试与同步
+		adminSettings.POST("/ldap/test", h.Admin.Setting.TestLDAPConnection)
+		adminSettings.POST("/ldap/sync", h.Admin.Setting.SyncLDAPUsersNow)
 	}
 }
 
