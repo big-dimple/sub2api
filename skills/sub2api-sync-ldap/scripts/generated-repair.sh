@@ -12,13 +12,26 @@ sync_embedded_version() {
     local latest_tag=""
     local latest_version=""
     local current_version=""
+    local tag_sha=""
+    local commits_ahead=""
 
     [[ -f "$f" ]] || return 0
 
     latest_tag="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)"
-    [[ -n "$latest_tag" ]] || return 0
+    if [[ -n "$latest_tag" ]]; then
+        latest_version="${latest_tag#v}"
+        tag_sha="$(git rev-list -n 1 "$latest_tag" 2>/dev/null || true)"
 
-    latest_version="${latest_tag#v}"
+        if [[ -n "$tag_sha" ]] && git merge-base --is-ancestor "$tag_sha" HEAD >/dev/null 2>&1; then
+            commits_ahead="$(git rev-list --count "${latest_tag}..HEAD" 2>/dev/null || echo 0)"
+            if [[ "$commits_ahead" != "0" ]]; then
+                latest_version="${latest_version}.${commits_ahead}"
+            fi
+        fi
+    fi
+
+    [[ -n "$latest_version" ]] || return 0
+
     current_version="$(tr -d '\r\n' < "$f" || true)"
     if [[ "$current_version" == "$latest_version" ]]; then
         return 0

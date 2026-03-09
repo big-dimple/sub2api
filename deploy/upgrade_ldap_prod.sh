@@ -256,10 +256,24 @@ prepare_repo() {
 detect_build_version() {
     local version_file="${PROJECT_ROOT}/backend/cmd/server/VERSION"
     local latest_tag=""
+    local latest_version=""
+    local tag_sha=""
+    local commits_ahead=""
 
     latest_tag="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)"
+
     if [[ -n "$latest_tag" ]]; then
-        echo "${latest_tag#v}"
+        latest_version="${latest_tag#v}"
+        tag_sha="$(git rev-list -n 1 "$latest_tag" 2>/dev/null || true)"
+
+        if [[ -n "$tag_sha" ]] && git merge-base --is-ancestor "$tag_sha" HEAD >/dev/null 2>&1; then
+            commits_ahead="$(git rev-list --count "${latest_tag}..HEAD" 2>/dev/null || echo 0)"
+            if [[ "$commits_ahead" != "0" ]]; then
+                latest_version="${latest_version}.${commits_ahead}"
+            fi
+        fi
+
+        echo "${latest_version}"
         return
     fi
 
