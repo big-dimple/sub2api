@@ -46,8 +46,8 @@ if ! git remote | grep -qx upstream; then
     git remote add upstream https://github.com/Wei-Shaw/sub2api.git
 fi
 
-echo "Fetch upstream/main..."
-if ! git fetch upstream main --quiet; then
+echo "Fetch upstream/main + tags..."
+if ! git fetch upstream main --tags --quiet; then
     echo "ERROR: failed to fetch upstream/main."
     exit 1
 fi
