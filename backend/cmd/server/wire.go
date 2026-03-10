@@ -27,7 +27,7 @@ type Application struct {
 	Cleanup func()
 }
 
-func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
+func initializeApplication(buildInfo handler.BuildInfo) (*Application, func(), error) {
 	wire.Build(
 		// Infrastructure layer ProviderSets
 		config.ProviderSet,
@@ -50,7 +50,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		// Application struct
 		wire.Struct(new(Application), "Server", "Cleanup"),
 	)
-	return nil, nil
+	return nil, nil, nil
 }
 
 func provideServiceBuildInfo(buildInfo handler.BuildInfo) service.BuildInfo {
