@@ -59,3 +59,4 @@ bash skills/sub2api-sync-ldap/scripts/sync.sh --skip-deploy-sanity
 3. if overlay conflicts, resolve conflict in `feature/ldap-release`, commit, then continue `generated-repair.sh` -> `contract-gate.sh` -> commit generated artifacts -> `backfill-support.sh` -> publish
 4. LDAP customization is the primary objective: when upstream behavior conflicts with LDAP-only requirements, prefer the LDAP behavior even if it means deviating from upstream
 5. do not preserve unrelated customizations during conflict resolution unless they are explicitly requested; default to "official upstream + required LDAP changes only"
+6. preserve the Gemini customization that disables platform-side Gemini rate limiting; upstream 429 passthrough may remain, but local precheck, local persistence, scheduling exclusion, and ops "rate limited" display must stay disabled for Gemini unless explicitly requested otherwise
