@@ -105,6 +105,7 @@ func TestLDAPLoginContract(t *testing.T) {
 	}
 
 	authService := service.NewAuthService(
+		nil, // entClient
 		userRepo,
 		extAuth,
 		nil, // redeemRepo

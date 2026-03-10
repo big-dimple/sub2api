@@ -57,3 +57,5 @@ bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --skip-deploy-sanity
 1. keep worktree clean before running
 2. do not commit backups or package-manager cache
 3. if overlay conflicts, resolve conflict in `feature/ldap-release`, commit, then continue `generated-repair.sh` -> `contract-gate.sh` -> `backfill-support.sh` -> publish
+4. LDAP customization is the primary objective: when upstream behavior conflicts with LDAP-only requirements, prefer the LDAP behavior even if it means deviating from upstream
+5. do not preserve unrelated customizations during conflict resolution unless they are explicitly requested; default to "official upstream + required LDAP changes only"
