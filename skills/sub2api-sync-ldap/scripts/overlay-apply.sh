@@ -92,7 +92,7 @@ else
     if bash "$SCRIPT_DIR/auto-resolve-wire-conflicts.sh"; then
         if [[ -z "$(git diff --name-only --diff-filter=U)" ]]; then
             git commit --no-edit >/dev/null
-            echo "OK: overlay merge completed with auto-resolved provider conflicts."
+            echo "OK: overlay merge completed with auto-resolved known conflicts."
             exit 0
         fi
     fi
