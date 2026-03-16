@@ -875,6 +875,191 @@
 
         <!-- Tab: Users -->
         <div v-show="activeTab === 'users'" class="space-y-6">
+        <!-- LDAP / AD Settings -->
+        <div class="card" data-tour="settings-ldap-card">
+          <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">LDAP / AD 身份接入</h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                启用后仅保留本地管理员账号，普通用户通过域账号登录并自动同步。
+              </p>
+            </div>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                @click="testLdapConnection"
+                :disabled="ldapStore.isTesting"
+                class="btn btn-secondary btn-sm"
+              >
+                <svg v-if="ldapStore.isTesting" class="mr-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                测试连接
+              </button>
+              <button
+                type="button"
+                @click="syncLdapNow"
+                :disabled="ldapStore.isSyncing"
+                class="btn btn-secondary btn-sm"
+              >
+                <svg v-if="ldapStore.isSyncing" class="mr-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                立即同步
+              </button>
+            </div>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-200">
+              <p class="font-medium">新手配置顺序（建议）</p>
+              <p class="mt-1">1) 连接参数（Host/Port/TLS/Bind）</p>
+              <p>2) 用户检索（Base DN/Filter/Login Attr/UID Attr）</p>
+              <p>3) 授权策略（允许组 DN、组映射）</p>
+              <p>4) 同步策略（启用同步、同步周期）</p>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">启用 LDAP 登录</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  登录页将支持“域账号/邮箱 + 密码”认证
+                </p>
+              </div>
+              <Toggle v-model="form.ldap_enabled" />
+            </div>
+
+            <div v-if="form.ldap_enabled" class="space-y-5 border-t border-gray-100 pt-4 dark:border-dark-700">
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">LDAP 服务器地址（Host）</label>
+                  <input v-model="form.ldap_host" type="text" class="input font-mono text-sm" placeholder="ad.example.com" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">示例：`ad.company.local` 或域控 IP。</p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">端口（Port）</label>
+                  <input v-model.number="form.ldap_port" type="number" min="1" max="65535" class="input font-mono text-sm" placeholder="389" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">常见：`389`（LDAP/StartTLS）或 `636`（LDAPS）。</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
+                  <span class="text-sm text-gray-700 dark:text-gray-300">使用 LDAPS（TLS）</span>
+                  <Toggle v-model="form.ldap_use_tls" />
+                </div>
+                <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
+                  <span class="text-sm text-gray-700 dark:text-gray-300">启用 StartTLS</span>
+                  <Toggle v-model="form.ldap_start_tls" />
+                </div>
+                <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
+                  <span class="text-sm text-gray-700 dark:text-gray-300">跳过 TLS 证书校验（仅测试）</span>
+                  <Toggle v-model="form.ldap_insecure_skip_verify" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">服务账号 DN（Bind DN）</label>
+                  <input v-model="form.ldap_bind_dn" type="text" class="input font-mono text-sm" placeholder="cn=svc,ou=service,dc=example,dc=com" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">服务账号密码（Bind Password）</label>
+                  <input
+                    v-model="form.ldap_bind_password"
+                    type="password"
+                    class="input font-mono text-sm"
+                    :placeholder="form.ldap_bind_password_configured ? '已配置（留空不修改）' : '请输入 Bind 密码'"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">用户搜索根 DN（User Base DN）</label>
+                  <input v-model="form.ldap_user_base_dn" type="text" class="input font-mono text-sm" placeholder="ou=users,dc=example,dc=com" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">用户过滤条件（User Filter）</label>
+                  <input v-model="form.ldap_user_filter" type="text" class="input font-mono text-sm" placeholder="(&(objectClass=user)({login_attr}={login}))" />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">支持占位符：`{login_attr}`、`{login}`。</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">登录属性（Login Attr）</label>
+                  <input v-model="form.ldap_login_attr" type="text" class="input font-mono text-sm" placeholder="sAMAccountName" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">唯一 ID 属性（UID Attr）</label>
+                  <input v-model="form.ldap_uid_attr" type="text" class="input font-mono text-sm" placeholder="uid" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">组属性（Group Attr）</label>
+                  <input v-model="form.ldap_group_attr" type="text" class="input font-mono text-sm" placeholder="memberOf" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">邮箱属性（Email Attr）</label>
+                  <input v-model="form.ldap_email_attr" type="text" class="input font-mono text-sm" placeholder="mail" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">显示名属性（Display Name Attr）</label>
+                  <input v-model="form.ldap_display_name_attr" type="text" class="input font-mono text-sm" placeholder="displayName" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">部门属性（Department Attr）</label>
+                  <input v-model="form.ldap_department_attr" type="text" class="input font-mono text-sm" placeholder="department" />
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">允许登录组 DN（每行一个）</label>
+                <textarea
+                  v-model="form.ldap_allowed_group_dns_text"
+                  rows="4"
+                  class="input font-mono text-sm"
+                  placeholder="cn=sub2api-users,ou=groups,dc=example,dc=com"
+                ></textarea>
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">留空表示不按组限制登录；建议生产环境至少配置一个允许组。</p>
+              </div>
+
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">组映射规则（JSON）</label>
+                <textarea
+                  v-model="form.ldap_group_mappings_text"
+                  rows="8"
+                  class="input font-mono text-sm"
+                  placeholder='[{\"ldap_group_dn\":\"cn=AI-Researchers,ou=groups,dc=example,dc=com\",\"target_role\":\"user\",\"balance\":500,\"concurrency\":20,\"priority\":100}]'
+                ></textarea>
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">当用户命中多个组时按 `priority` 高者生效；本系统仅允许本地 admin，不会通过 LDAP 提升为管理员。</p>
+              </div>
+
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div class="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-dark-700">
+                  <span class="text-sm text-gray-700 dark:text-gray-300">启用周期同步</span>
+                  <Toggle v-model="form.ldap_sync_enabled" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">同步周期（分钟）</label>
+                  <input
+                    v-model.number="form.ldap_sync_interval_minutes"
+                    type="number"
+                    min="5"
+                    max="10080"
+                    class="input font-mono text-sm"
+                    placeholder="1440"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">建议先按 `1440`（每日）运行，稳定后再缩短周期。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         <!-- Default Settings -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -1732,6 +1917,7 @@ import {
   normalizeRegistrationEmailSuffixDomains,
   parseRegistrationEmailSuffixWhitelistInput
 } from '@/utils/registrationEmailPolicy'
+import { useLdapSettingsStore } from '@/stores/ldapSettings'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -1748,6 +1934,7 @@ const settingsTabs = [
   { key: 'backup'   as SettingsTab, icon: 'database' as const },
   { key: 'data'     as SettingsTab, icon: 'cube'     as const },
 ]
+const ldapStore = useLdapSettingsStore()
 const { copyToClipboard } = useClipboard()
 
 const loading = ref(true)
@@ -1812,6 +1999,9 @@ type SettingsForm = SystemSettings & {
   smtp_password: string
   turnstile_secret_key: string
   linuxdo_connect_client_secret: string
+  ldap_bind_password: string
+  ldap_allowed_group_dns_text: string
+  ldap_group_mappings_text: string
 }
 
 const form = reactive<SettingsForm>({
@@ -1859,6 +2049,30 @@ const form = reactive<SettingsForm>({
   linuxdo_connect_client_secret: '',
   linuxdo_connect_client_secret_configured: false,
   linuxdo_connect_redirect_url: '',
+  // LDAP settings
+  ldap_enabled: false,
+  ldap_host: '',
+  ldap_port: 389,
+  ldap_use_tls: false,
+  ldap_start_tls: false,
+  ldap_insecure_skip_verify: false,
+  ldap_bind_dn: '',
+  ldap_bind_password: '',
+  ldap_bind_password_configured: false,
+  ldap_user_base_dn: '',
+  ldap_user_filter: '({login_attr}={login})',
+  ldap_login_attr: 'mail',
+  ldap_uid_attr: 'uid',
+  ldap_email_attr: 'mail',
+  ldap_display_name_attr: 'displayName',
+  ldap_department_attr: 'department',
+  ldap_group_attr: 'memberOf',
+  ldap_allowed_group_dns: [],
+  ldap_group_mappings: [],
+  ldap_sync_enabled: true,
+  ldap_sync_interval_minutes: 1440,
+  ldap_allowed_group_dns_text: '',
+  ldap_group_mappings_text: '[]',
   // Model fallback
   enable_model_fallback: false,
   fallback_model_anthropic: 'claude-3-5-sonnet-20241022',
@@ -2028,6 +2242,9 @@ async function loadSettings() {
     form.smtp_password = ''
     form.turnstile_secret_key = ''
     form.linuxdo_connect_client_secret = ''
+    form.ldap_bind_password = ''
+    form.ldap_allowed_group_dns_text = (settings.ldap_allowed_group_dns || []).join('\\n')
+    form.ldap_group_mappings_text = JSON.stringify(settings.ldap_group_mappings || [], null, 2)
   } catch (error: any) {
     appStore.showError(
       t('admin.settings.failedToLoad') + ': ' + (error.message || t('common.unknownError'))
@@ -2091,6 +2308,23 @@ async function saveSettings() {
       return
     }
 
+    let parsedMappings: any[] = []
+    try {
+      parsedMappings = JSON.parse(form.ldap_group_mappings_text || '[]')
+      if (!Array.isArray(parsedMappings)) {
+        throw new Error('LDAP group mappings must be an array')
+      }
+    } catch (parseErr: any) {
+      appStore.showError(`LDAP 组映射 JSON 格式错误: ${parseErr.message || 'invalid json'}`)
+      saving.value = false
+      return
+    }
+
+    const parsedAllowedDNs = (form.ldap_allowed_group_dns_text || '')
+      .split('\\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
+
     const payload: UpdateSettingsRequest = {
       registration_enabled: form.registration_enabled,
       email_verify_enabled: form.email_verify_enabled,
@@ -2132,6 +2366,26 @@ async function saveSettings() {
       linuxdo_connect_client_id: form.linuxdo_connect_client_id,
       linuxdo_connect_client_secret: form.linuxdo_connect_client_secret || undefined,
       linuxdo_connect_redirect_url: form.linuxdo_connect_redirect_url,
+      ldap_enabled: form.ldap_enabled,
+      ldap_host: form.ldap_host,
+      ldap_port: form.ldap_port,
+      ldap_use_tls: form.ldap_use_tls,
+      ldap_start_tls: form.ldap_start_tls,
+      ldap_insecure_skip_verify: form.ldap_insecure_skip_verify,
+      ldap_bind_dn: form.ldap_bind_dn,
+      ldap_bind_password: form.ldap_bind_password || undefined,
+      ldap_user_base_dn: form.ldap_user_base_dn,
+      ldap_user_filter: form.ldap_user_filter,
+      ldap_login_attr: form.ldap_login_attr,
+      ldap_uid_attr: form.ldap_uid_attr,
+      ldap_email_attr: form.ldap_email_attr,
+      ldap_display_name_attr: form.ldap_display_name_attr,
+      ldap_department_attr: form.ldap_department_attr,
+      ldap_group_attr: form.ldap_group_attr,
+      ldap_allowed_group_dns: parsedAllowedDNs,
+      ldap_group_mappings: parsedMappings,
+      ldap_sync_enabled: form.ldap_sync_enabled,
+      ldap_sync_interval_minutes: form.ldap_sync_interval_minutes,
       enable_model_fallback: form.enable_model_fallback,
       fallback_model_anthropic: form.fallback_model_anthropic,
       fallback_model_openai: form.fallback_model_openai,
@@ -2151,7 +2405,10 @@ async function saveSettings() {
     form.smtp_password = ''
     form.turnstile_secret_key = ''
     form.linuxdo_connect_client_secret = ''
-    // Refresh cached settings so sidebar/header update immediately
+form.ldap_bind_password = ''
+form.ldap_allowed_group_dns_text = (updated.ldap_allowed_group_dns || []).join('\n')
+form.ldap_group_mappings_text = JSON.stringify(updated.ldap_group_mappings || [], null, 2)
+// Refresh cached settings so sidebar/header update immediately
     await appStore.fetchPublicSettings(true)
     await adminSettingsStore.fetch(true)
     appStore.showSuccess(t('admin.settings.settingsSaved'))
@@ -2161,6 +2418,28 @@ async function saveSettings() {
     )
   } finally {
     saving.value = false
+  }
+}
+
+async function testLdapConnection() {
+  try {
+    const result = await ldapStore.testConnection()
+    appStore.showSuccess(result.message || 'LDAP 连接测试成功')
+  } catch (error: any) {
+    appStore.showError('LDAP 连接测试失败: ' + (error.message || '未知错误'))
+  }
+}
+
+async function syncLdapNow() {
+  if (!confirm('确定要立即开始 LDAP 用户同步吗？这可能会持续一段时间。')) return
+
+  try {
+    const result = await ldapStore.syncNow()
+    appStore.showSuccess(
+      `LDAP 同步完成！检查: ${result.checked}, 更新: ${result.updated}, 禁用: ${result.disabled}`
+    )
+  } catch (error: any) {
+    appStore.showError('LDAP 同步失败: ' + (error.message || '未知错误'))
   }
 }
 
