@@ -288,19 +288,20 @@ detect_build_version() {
 upgrade_flow() {
     local build_commit
     local build_version
+    local branch_head
 
     perform_backup
     prepare_repo
 
     log "[2/5] Syncing source branch ${TARGET_BRANCH} ..."
-    git fetch origin "$TARGET_BRANCH"
+    git fetch origin "${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+    git show-ref --verify --quiet "refs/remotes/origin/${TARGET_BRANCH}" || die "remote branch not found: origin/${TARGET_BRANCH}"
 
-    if git show-ref --verify --quiet "refs/heads/${TARGET_BRANCH}"; then
-        git switch "$TARGET_BRANCH"
-    else
-        git switch -c "$TARGET_BRANCH" --track "origin/${TARGET_BRANCH}"
-    fi
-    git pull --ff-only origin "$TARGET_BRANCH"
+    # Release branches may be force-pushed after upstream rebases/rebuilds.
+    # On deploy hosts we want the exact remote branch tip after backup, not a local merge.
+    git switch -C "$TARGET_BRANCH" "origin/${TARGET_BRANCH}" >/dev/null
+    branch_head="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    log "OK: source branch synced to ${TARGET_BRANCH} @ ${branch_head}"
 
     build_version="$(detect_build_version)"
     build_commit="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
