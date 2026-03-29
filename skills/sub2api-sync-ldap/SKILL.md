@@ -17,7 +17,7 @@ This runs:
 1. upstream preflight
 2. LDAP patch overlay
 3. generated code repair
-4. contract checks
+4. contract checks (backend LDAP contract, backend compile, frontend typecheck, frontend Vitest)
 5. deploy sanity checks (compose healthcheck/data dir, Dockerfile healthcheck, setup fallback, deploy script hardening, deploy docs)
 6. backfill patch source branch from `feature/ldap-release` (default target: `feature/ldap-support`)
 

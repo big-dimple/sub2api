@@ -31,6 +31,12 @@ if [[ -d frontend && -f frontend/package.json ]]; then
         pnpm install --silent
         pnpm run typecheck
     )
+
+    echo "Gate: frontend test suite"
+    (
+        cd frontend
+        pnpm run test:run
+    )
 fi
 
 echo "OK: contract gate passed."
