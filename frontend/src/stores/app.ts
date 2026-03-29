@@ -334,6 +334,7 @@ export const useAppStore = defineStore('app', () => {
         linuxdo_oauth_enabled: false,
         sora_client_enabled: false,
         backend_mode_enabled: false,
+        ldap_enabled: false,
         version: siteVersion.value
       }
     }

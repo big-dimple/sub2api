@@ -22783,6 +22783,7 @@ type UserMutation struct {
 	addconcurrency                *int
 	status                        *string
 	username                      *string
+	auth_source                   *string
 	notes                         *string
 	totp_secret_encrypted         *string
 	totp_enabled                  *bool
@@ -23333,6 +23334,42 @@ func (m *UserMutation) OldUsername(ctx context.Context) (v string, err error) {
 // ResetUsername resets all changes to the "username" field.
 func (m *UserMutation) ResetUsername() {
 	m.username = nil
+}
+
+// SetAuthSource sets the "auth_source" field.
+func (m *UserMutation) SetAuthSource(s string) {
+	m.auth_source = &s
+}
+
+// AuthSource returns the value of the "auth_source" field in the mutation.
+func (m *UserMutation) AuthSource() (r string, exists bool) {
+	v := m.auth_source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthSource returns the old "auth_source" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAuthSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthSource: %w", err)
+	}
+	return oldValue.AuthSource, nil
+}
+
+// ResetAuthSource resets all changes to the "auth_source" field.
+func (m *UserMutation) ResetAuthSource() {
+	m.auth_source = nil
 }
 
 // SetNotes sets the "notes" field.
@@ -24137,7 +24174,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -24167,6 +24204,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
+	}
+	if m.auth_source != nil {
+		fields = append(fields, user.FieldAuthSource)
 	}
 	if m.notes != nil {
 		fields = append(fields, user.FieldNotes)
@@ -24214,6 +24254,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case user.FieldUsername:
 		return m.Username()
+	case user.FieldAuthSource:
+		return m.AuthSource()
 	case user.FieldNotes:
 		return m.Notes()
 	case user.FieldTotpSecretEncrypted:
@@ -24255,6 +24297,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldStatus(ctx)
 	case user.FieldUsername:
 		return m.OldUsername(ctx)
+	case user.FieldAuthSource:
+		return m.OldAuthSource(ctx)
 	case user.FieldNotes:
 		return m.OldNotes(ctx)
 	case user.FieldTotpSecretEncrypted:
@@ -24345,6 +24389,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUsername(v)
+		return nil
+	case user.FieldAuthSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthSource(v)
 		return nil
 	case user.FieldNotes:
 		v, ok := value.(string)
@@ -24538,6 +24589,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldUsername:
 		m.ResetUsername()
+		return nil
+	case user.FieldAuthSource:
+		m.ResetAuthSource()
 		return nil
 	case user.FieldNotes:
 		m.ResetNotes()
