@@ -54,7 +54,7 @@ fi
 git branch -f upstream-mirror upstream/main >/dev/null
 
 echo "Fetch origin/main (optional)..."
-git fetch origin main:refs/remotes/origin/main >/dev/null 2>&1 || true
+git fetch origin +main:refs/remotes/origin/main >/dev/null 2>&1 || true
 
 UPSTREAM_SHA="$(git rev-parse upstream-mirror)"
 PATCH_SHA="$(git rev-parse "${PATCH_BRANCH}")"

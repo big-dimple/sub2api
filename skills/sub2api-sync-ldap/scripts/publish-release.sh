@@ -49,7 +49,7 @@ push_one_branch() {
         exit 1
     fi
 
-    git fetch origin "${branch}:refs/remotes/origin/${branch}" >/dev/null 2>&1 || true
+    git fetch origin "+${branch}:refs/remotes/origin/${branch}" >/dev/null 2>&1 || true
 
     local local_sha
     local_sha="$(git rev-parse "${branch}")"

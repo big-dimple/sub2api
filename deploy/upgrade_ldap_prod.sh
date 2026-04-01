@@ -309,7 +309,7 @@ upgrade_flow() {
     prepare_repo
 
     log "[2/5] Syncing source branch ${TARGET_BRANCH} ..."
-    git fetch origin "${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+    git fetch origin "+${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
     git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/remotes/origin/${TARGET_BRANCH}" || die "remote branch not found: origin/${TARGET_BRANCH}"
     cleanup_build_root
     create_build_root
