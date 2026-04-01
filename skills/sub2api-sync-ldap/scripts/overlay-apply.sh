@@ -53,25 +53,25 @@ if ! git fetch upstream main --tags --quiet; then
 fi
 git branch -f upstream-mirror upstream/main >/dev/null
 
-echo "Fetch origin/feature/ldap-release (optional)..."
-git fetch origin feature/ldap-release:refs/remotes/origin/feature/ldap-release >/dev/null 2>&1 || true
+echo "Fetch origin/main (optional)..."
+git fetch origin main:refs/remotes/origin/main >/dev/null 2>&1 || true
 
 UPSTREAM_SHA="$(git rev-parse upstream-mirror)"
 PATCH_SHA="$(git rev-parse "${PATCH_BRANCH}")"
 
-if git show-ref --verify --quiet refs/remotes/origin/feature/ldap-release; then
-    ORIGIN_RELEASE="origin/feature/ldap-release"
+if git show-ref --verify --quiet refs/remotes/origin/main; then
+    ORIGIN_RELEASE="origin/main"
     ORIGIN_P1="$(git rev-parse "${ORIGIN_RELEASE}^1" 2>/dev/null || true)"
     ORIGIN_P2="$(git rev-parse "${ORIGIN_RELEASE}^2" 2>/dev/null || true)"
     if [[ "$ORIGIN_P1" == "$UPSTREAM_SHA" && "$ORIGIN_P2" == "$PATCH_SHA" ]]; then
-        echo "OK: origin/feature/ldap-release already matches current upstream+patch."
-        git switch -C feature/ldap-release "$ORIGIN_RELEASE" >/dev/null
+        echo "OK: origin/main already matches current upstream+patch."
+        git switch -C main "$ORIGIN_RELEASE" >/dev/null
         exit 0
     fi
 fi
 
-echo "Create feature/ldap-release from upstream-mirror..."
-git switch -C feature/ldap-release upstream-mirror >/dev/null
+echo "Create main from upstream-mirror..."
+git switch -C main upstream-mirror >/dev/null
 
 if git merge-base --is-ancestor "$PATCH_BRANCH" HEAD; then
     echo "OK: patch branch is already contained in upstream-mirror; no merge needed."
@@ -80,7 +80,7 @@ fi
 
 if git merge-base --is-ancestor HEAD "$PATCH_BRANCH"; then
     echo "OK: patch branch already contains upstream base; fast-forward release to patch."
-    git switch -C feature/ldap-release "$PATCH_BRANCH" >/dev/null
+    git switch -C main "$PATCH_BRANCH" >/dev/null
     exit 0
 fi
 
@@ -88,7 +88,7 @@ echo "Merge patch branch: ${PATCH_BRANCH}"
 if git merge --no-ff "$PATCH_BRANCH" -m "Merge LDAP patch (${PATCH_BRANCH}) into release"; then
     echo "OK: overlay merge completed."
 else
-    echo "WARN: merge conflicts detected on feature/ldap-release, try known auto-resolutions."
+    echo "WARN: merge conflicts detected on main, try known auto-resolutions."
     if bash "$SCRIPT_DIR/auto-resolve-wire-conflicts.sh"; then
         if [[ -z "$(git diff --name-only --diff-filter=U)" ]]; then
             git commit --no-edit >/dev/null
@@ -96,7 +96,7 @@ else
             exit 0
         fi
     fi
-    echo "ERROR: merge conflicts detected on feature/ldap-release."
+    echo "ERROR: merge conflicts detected on main."
     echo "Resolve conflicts, commit, then continue generated-repair.sh -> contract-gate.sh -> backfill-support.sh."
     exit 1
 fi

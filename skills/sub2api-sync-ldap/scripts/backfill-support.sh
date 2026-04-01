@@ -8,12 +8,12 @@ Usage:
   bash backfill-support.sh [--release-branch <branch>] [--support-branch <branch>]
 
 Defaults:
-  --release-branch feature/ldap-release
+  --release-branch main
   --support-branch feature/ldap-support
 EOF
 }
 
-RELEASE_BRANCH="feature/ldap-release"
+RELEASE_BRANCH="main"
 SUPPORT_BRANCH="feature/ldap-support"
 
 while [[ $# -gt 0 ]]; do

@@ -11,7 +11,6 @@
 ```bash
 git clone git@github.com:big-dimple/sub2api.git
 cd sub2api
-git checkout feature/ldap-release
 
 cd deploy
 mkdir -p data postgres_data redis_data
@@ -44,13 +43,14 @@ docker compose -f docker-compose.local.yml logs sub2api | grep "Generated admin 
 
 ```bash
 cd /path/to/sub2api/deploy
-bash upgrade_ldap_prod.sh
+bash upgrade_main.sh
 ```
 
 说明：
 - 脚本会先强制备份（`.env`、`config.yaml`、PostgreSQL SQL 导出、卷目录归档），备份成功后才会继续升级。
-- 默认拉取并发布 `feature/ldap-release`。
-- 如需临时切换分支，可使用：`bash upgrade_ldap_prod.sh --branch <branch>`
+- 默认拉取并发布 `main`。
+- 如需临时切换分支，可使用：`bash upgrade_main.sh --branch <branch>`
+- 兼容旧入口：`upgrade_ldap_prod.sh` 仍可使用，但 `upgrade_main.sh` 是新的公开入口。
 
 ---
 
@@ -62,14 +62,14 @@ bash upgrade_ldap_prod.sh
 
 ```bash
 cd /path/to/sub2api/deploy
-bash upgrade_ldap_prod.sh --restore latest
+bash upgrade_main.sh --restore latest
 ```
 
 恢复指定备份目录：
 
 ```bash
 cd /path/to/sub2api/deploy
-bash upgrade_ldap_prod.sh --restore ../backups/backup_YYYYMMDD_HHMMSS
+bash upgrade_main.sh --restore ../backups/backup_YYYYMMDD_HHMMSS
 ```
 
 ### 3.2 镜像回退（可选）

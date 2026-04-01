@@ -128,10 +128,10 @@ bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh
 如果脚本中断，请让 AI 继续在当前分支修复并重新执行同一入口脚本，直到结束成功提示。
 
 ### 10.4 最终合并与推送
-一旦同步流水线（包含四个阶段）全绿通过，产物将被放置在 `feature/ldap-release` 分支。
+一旦同步流水线（包含四个阶段）全绿通过，产物将直接落在 `main` 分支。
 此时你可以执行：
 ```bash
-git push origin feature/ldap-release:main --force
+git push origin main --force-with-lease
 ```
 - 可以提交，但只提交“通用能力”（如 LDAP Bug 修复、通用可配置项）。
 - 企业特有策略（本地 admin 保留、组织配额规则、内部文档）留在 fork，不直接上游化。

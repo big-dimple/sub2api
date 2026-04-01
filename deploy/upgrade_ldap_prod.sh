@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sub2API 企业 LDAP 版 - 生产环境安全升级脚本
+# Sub2API LDAP 主线版 - 兼容升级脚本
 #
 # 用法：
 #   升级（强制备份）:
@@ -10,7 +10,7 @@
 #     bash upgrade_ldap_prod.sh --restore ../backups/backup_YYYYMMDD_HHMMSS
 #
 # 可选参数：
-#   --branch <branch>           默认 feature/ldap-release
+#   --branch <branch>           默认 main
 #   --compose-file <file>       默认优先 docker-compose.local.yml，否则 docker-compose.yml
 #   --image <image:tag>         默认 weishaw/sub2api:latest
 
@@ -20,8 +20,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY_DIR="${SCRIPT_DIR}"
 ENV_FILE="${DEPLOY_DIR}/.env"
+SCRIPT_NAME="${UPGRADE_SCRIPT_NAME:-$(basename "$0")}"
 
-TARGET_BRANCH="feature/ldap-release"
+TARGET_BRANCH="main"
 IMAGE_TAG="weishaw/sub2api:latest"
 COMPOSE_FILE=""
 RESTORE_TARGET=""
@@ -29,19 +30,19 @@ BACKUP_DIR=""
 HEALTH_TIMEOUT_SECONDS=90
 
 usage() {
-    cat <<'EOF'
-Sub2API LDAP Upgrade Script
+    cat <<EOF
+Sub2API Mainline Upgrade Script
 
 Usage:
-  bash upgrade_ldap_prod.sh [--branch <branch>] [--compose-file <file>] [--image <image:tag>]
-  bash upgrade_ldap_prod.sh --restore latest
-  bash upgrade_ldap_prod.sh --restore <backup_dir>
+  bash ${SCRIPT_NAME} [--branch <branch>] [--compose-file <file>] [--image <image:tag>]
+  bash ${SCRIPT_NAME} --restore latest
+  bash ${SCRIPT_NAME} --restore <backup_dir>
 
 Examples:
-  bash upgrade_ldap_prod.sh
-  bash upgrade_ldap_prod.sh --restore latest
-  bash upgrade_ldap_prod.sh --restore ../backups/backup_20260304_120000
-  bash upgrade_ldap_prod.sh --branch feature/ldap-release
+  bash ${SCRIPT_NAME}
+  bash ${SCRIPT_NAME} --restore latest
+  bash ${SCRIPT_NAME} --restore ../backups/backup_20260304_120000
+  bash ${SCRIPT_NAME} --branch main
 EOF
 }
 

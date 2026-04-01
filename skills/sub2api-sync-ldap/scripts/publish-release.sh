@@ -9,7 +9,7 @@ Usage:
 EOF
 }
 
-RELEASE_BRANCH="feature/ldap-release"
+RELEASE_BRANCH="main"
 ALSO_BRANCH=""
 
 while [[ $# -gt 0 ]]; do

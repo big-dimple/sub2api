@@ -10,7 +10,7 @@ Usage:
   bash sync.sh [--publish] [--full-test] [--patch-branch <branch>] [--backfill-branch <branch>] [--no-backfill] [--skip-deploy-sanity]
 
 Options:
-  --publish               Push feature/ldap-release (and backfill branch) only when actually changed.
+  --publish               Push main (and backfill branch) only when actually changed.
   --full-test             Run full backend test suites in contract gate stage.
   --patch-branch <name>   Use specific patch branch (default auto detect).
   --backfill-branch <name>  Target branch for backfill (default: patch branch or feature/ldap-support).
@@ -150,12 +150,12 @@ commit_generated_artifacts
 
 if [[ "$DO_BACKFILL" -eq 1 ]]; then
     echo "[${STEP}/${TOTAL_STEPS}] backfill patch source branch (${BACKFILL_BRANCH})"
-    bash "$SCRIPT_DIR/backfill-support.sh" --release-branch feature/ldap-release --support-branch "$BACKFILL_BRANCH"
+    bash "$SCRIPT_DIR/backfill-support.sh" --release-branch main --support-branch "$BACKFILL_BRANCH"
 fi
 
 if [[ "$PUBLISH" -eq 1 ]]; then
-    echo "[publish] feature/ldap-release"
-    bash "$SCRIPT_DIR/publish-release.sh" --release-branch feature/ldap-release --also-branch "$BACKFILL_BRANCH"
+    echo "[publish] main"
+    bash "$SCRIPT_DIR/publish-release.sh" --release-branch main --also-branch "$BACKFILL_BRANCH"
 fi
 
 echo "DONE: LDAP sync workflow completed."
