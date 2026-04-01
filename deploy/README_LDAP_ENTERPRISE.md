@@ -51,6 +51,7 @@ bash upgrade_main.sh
 - 默认拉取并发布 `main`。
 - 如需临时切换分支，可使用：`bash upgrade_main.sh --branch <branch>`
 - 兼容旧入口：`upgrade_ldap_prod.sh` 仍可使用，但 `upgrade_main.sh` 是新的公开入口。
+- 即使你刚用 `curl` 覆盖过升级脚本、导致当前 Git 工作区变脏，脚本也会改为使用临时远端快照构建，不需要再手工 `git stash`。
 
 ---
 

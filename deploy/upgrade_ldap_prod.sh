@@ -28,6 +28,7 @@ COMPOSE_FILE=""
 RESTORE_TARGET=""
 BACKUP_DIR=""
 HEALTH_TIMEOUT_SECONDS=90
+BUILD_ROOT=""
 
 usage() {
     cat <<EOF
@@ -246,29 +247,37 @@ restore_database() {
     fi
 }
 
+cleanup_build_root() {
+    if [[ -n "$BUILD_ROOT" && -d "$BUILD_ROOT" ]]; then
+        git -C "$PROJECT_ROOT" worktree remove --force "$BUILD_ROOT" >/dev/null 2>&1 || rm -rf "$BUILD_ROOT"
+        BUILD_ROOT=""
+    fi
+}
+
 prepare_repo() {
     cd "$PROJECT_ROOT"
     git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "project root is not a git repository: $PROJECT_ROOT"
     if [[ -n "$(git status --porcelain)" ]]; then
-        die "git worktree is dirty in ${PROJECT_ROOT}; commit/stash changes before upgrade."
+        log "WARN: git worktree is dirty in ${PROJECT_ROOT}; upgrade will build from a temporary origin/${TARGET_BRANCH} snapshot without touching local changes."
     fi
 }
 
 detect_build_version() {
-    local version_file="${PROJECT_ROOT}/backend/cmd/server/VERSION"
+    local build_root="${1:-$PROJECT_ROOT}"
+    local version_file="${build_root}/backend/cmd/server/VERSION"
     local latest_tag=""
     local latest_version=""
     local tag_sha=""
     local commits_ahead=""
 
-    latest_tag="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)"
+    latest_tag="$(git -C "$build_root" describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)"
 
     if [[ -n "$latest_tag" ]]; then
         latest_version="${latest_tag#v}"
-        tag_sha="$(git rev-list -n 1 "$latest_tag" 2>/dev/null || true)"
+        tag_sha="$(git -C "$build_root" rev-list -n 1 "$latest_tag" 2>/dev/null || true)"
 
-        if [[ -n "$tag_sha" ]] && git merge-base --is-ancestor "$tag_sha" HEAD >/dev/null 2>&1; then
-            commits_ahead="$(git rev-list --count "${latest_tag}..HEAD" 2>/dev/null || echo 0)"
+        if [[ -n "$tag_sha" ]] && git -C "$build_root" merge-base --is-ancestor "$tag_sha" HEAD >/dev/null 2>&1; then
+            commits_ahead="$(git -C "$build_root" rev-list --count "${latest_tag}..HEAD" 2>/dev/null || echo 0)"
             if [[ "$commits_ahead" != "0" ]]; then
                 latest_version="${latest_version}.${commits_ahead}"
             fi
@@ -286,6 +295,11 @@ detect_build_version() {
     echo "0.0.0-dev"
 }
 
+create_build_root() {
+    BUILD_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/sub2api-upgrade.XXXXXX")"
+    git -C "$PROJECT_ROOT" worktree add --detach "$BUILD_ROOT" "origin/${TARGET_BRANCH}" >/dev/null
+}
+
 upgrade_flow() {
     local build_commit
     local build_version
@@ -296,32 +310,34 @@ upgrade_flow() {
 
     log "[2/5] Syncing source branch ${TARGET_BRANCH} ..."
     git fetch origin "${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
-    git show-ref --verify --quiet "refs/remotes/origin/${TARGET_BRANCH}" || die "remote branch not found: origin/${TARGET_BRANCH}"
+    git -C "$PROJECT_ROOT" show-ref --verify --quiet "refs/remotes/origin/${TARGET_BRANCH}" || die "remote branch not found: origin/${TARGET_BRANCH}"
+    cleanup_build_root
+    create_build_root
+    trap cleanup_build_root EXIT
 
-    # Release branches may be force-pushed after upstream rebases/rebuilds.
-    # On deploy hosts we want the exact remote branch tip after backup, not a local merge.
-    git switch -C "$TARGET_BRANCH" "origin/${TARGET_BRANCH}" >/dev/null
-    branch_head="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-    log "OK: source branch synced to ${TARGET_BRANCH} @ ${branch_head}"
+    branch_head="$(git -C "$BUILD_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    log "OK: source branch staged from origin/${TARGET_BRANCH} @ ${branch_head}"
 
-    build_version="$(detect_build_version)"
-    build_commit="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    build_version="$(detect_build_version "$BUILD_ROOT")"
+    build_commit="$(git -C "$BUILD_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
     log "[3/5] Building image ${IMAGE_TAG} (version ${build_version}, commit ${build_commit}) ..."
     docker build \
         --build-arg VERSION="$build_version" \
         --build-arg COMMIT="$build_commit" \
-        -t "$IMAGE_TAG" .
+        -t "$IMAGE_TAG" "$BUILD_ROOT"
 
     log "[4/5] Recreating sub2api container ..."
     cd "$DEPLOY_DIR"
-    docker compose -f "$COMPOSE_FILE" up -d --no-deps --build sub2api
+    docker compose -f "$COMPOSE_FILE" up -d --no-deps sub2api
 
     log "[5/5] Waiting for service health ..."
     if wait_for_health; then
         log "OK: upgrade completed successfully."
         log "Backup path: ${BACKUP_DIR}"
         docker compose -f "$COMPOSE_FILE" ps
+        cleanup_build_root
+        trap - EXIT
     else
         print_failure_hints
         die "upgrade failed after deployment."

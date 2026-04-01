@@ -80,6 +80,8 @@ cd /path/to/sub2api/deploy
 bash upgrade_main.sh
 ```
 
+即使运维先用 `curl` 更新了 `deploy/upgrade_main.sh`，导致部署仓库出现本地修改，脚本也会从远端 `main` 建立临时构建快照继续升级，不要求当前工作区 clean。
+
 **该脚本会在后台全自动、安全地执行以下流程：**
 1. **自动备份**：将 `docker-compose` 相关的配置文件，以及最核心的 **PostgreSQL 数据库** 导出为 SQL 备份文件（安全存放在 `../backups/` 目录下）。
 2. **代码拉取**：自动从公开主线 `main` 获取包含了最新 LDAP 补丁的代码。
