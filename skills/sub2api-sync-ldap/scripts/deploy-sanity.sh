@@ -43,9 +43,17 @@ rg -q 'chown -R 1000:1000 data' deploy/docker-deploy.sh || fail "docker-deploy.s
 rg -q 'generate_admin_password\(\)' deploy/docker-deploy.sh || fail "docker-deploy.sh missing admin password generation"
 rg -q '\^ADMIN_PASSWORD=' deploy/docker-deploy.sh || fail "docker-deploy.sh missing ADMIN_PASSWORD write-back"
 rg -q 'run_self_check_snapshot\(\)' deploy/docker-deploy.sh || fail "docker-deploy.sh missing self-check snapshot"
+rg -q 'upgrade_main.sh' deploy/docker-deploy.sh || fail "docker-deploy.sh missing upgrade_main.sh download"
+[[ -f deploy/upgrade_main.sh ]] || fail "missing deploy/upgrade_main.sh"
+[[ -f deploy/upgrade_ldap_prod.sh ]] || fail "missing deploy/upgrade_ldap_prod.sh compatibility wrapper"
+rg -q 'git clone --quiet --depth 1 --branch' deploy/upgrade_main.sh || fail "upgrade_main.sh missing remote branch clone logic"
+rg -q 'codeload.github.com' deploy/upgrade_main.sh || fail "upgrade_main.sh missing tarball fallback"
+! rg -q 'refs/remotes/origin/' deploy/upgrade_main.sh || fail "upgrade_main.sh should not rely on local origin refs"
+rg -q 'exec bash "\$TARGET_SCRIPT" "\$@"' deploy/upgrade_ldap_prod.sh || fail "upgrade_ldap_prod.sh not delegating to upgrade_main.sh"
 
 echo "Sanity: deploy docs"
 [[ -f deploy/README_LDAP_ENTERPRISE.md ]] || fail "missing deploy/README_LDAP_ENTERPRISE.md"
+rg -q 'bash upgrade_main.sh' deploy/README_LDAP_ENTERPRISE.md || fail "deploy/README_LDAP_ENTERPRISE.md missing upgrade_main.sh guidance"
 rg -q 'sudo chown -R 1000:1000 data' deploy/README.md || fail "deploy/README.md missing data permission guidance"
 
 echo "OK: deploy sanity checks passed."

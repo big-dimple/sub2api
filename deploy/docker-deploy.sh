@@ -4,6 +4,7 @@
 # =============================================================================
 # This script prepares deployment files for Sub2API:
 #   - Downloads docker-compose.local.yml and .env.example
+#   - Downloads upgrade_main.sh for future upgrades
 #   - Generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 #   - Creates necessary data directories
 #
@@ -148,6 +149,16 @@ main() {
     fi
     print_success "Downloaded .env.example"
 
+    # Download upgrade_main.sh
+    print_info "Downloading upgrade_main.sh..."
+    if command_exists curl; then
+        curl -sSL "${GITHUB_RAW_URL}/upgrade_main.sh" -o upgrade_main.sh
+    else
+        wget -q "${GITHUB_RAW_URL}/upgrade_main.sh" -O upgrade_main.sh
+    fi
+    chmod +x upgrade_main.sh
+    print_success "Downloaded upgrade_main.sh"
+
     # Generate .env file with auto-generated secrets
     print_info "Generating secure secrets..."
     echo ""
@@ -207,6 +218,7 @@ main() {
     echo "  docker-compose.yml        - Docker Compose configuration"
     echo "  .env                      - Environment variables (generated secrets)"
     echo "  .env.example              - Example template (for reference)"
+    echo "  upgrade_main.sh           - Safe upgrade / restore script"
     echo "  data/                     - Application data (will be created on first run)"
     echo "  postgres_data/            - PostgreSQL data"
     echo "  redis_data/               - Redis data"
@@ -216,10 +228,13 @@ main() {
     echo "  2. Start services:"
     echo "     docker-compose up -d"
     echo ""
-    echo "  3. View logs:"
+    echo "  3. Future upgrades:"
+    echo "     bash upgrade_main.sh"
+    echo ""
+    echo "  4. View logs:"
     echo "     docker-compose logs -f sub2api"
     echo ""
-    echo "  4. Access Web UI:"
+    echo "  5. Access Web UI:"
     echo "     http://localhost:8080"
     echo ""
     print_info "Admin password has been written into .env as ADMIN_PASSWORD."

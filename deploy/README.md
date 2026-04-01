@@ -16,7 +16,7 @@ This directory contains files for deploying Sub2API on Linux servers.
 | `docker-compose.yml` | Docker Compose configuration (named volumes) |
 | `docker-compose.local.yml` | Docker Compose configuration (local directories, easy migration) |
 | `docker-deploy.sh` | **One-click Docker deployment script (recommended)** |
-| `README_LDAP_ENTERPRISE.md` | 企业 LDAP 分支部署与升级/回滚手册（中文） |
+| `README_LDAP_ENTERPRISE.md` | LDAP 版唯一部署/升级/回滚手册（中文） |
 | `.env.example` | Docker environment variables template |
 | `DOCKER.md` | Docker Hub documentation |
 | `install.sh` | One-click binary installation script |
@@ -46,6 +46,7 @@ chmod +x docker-deploy.sh
 
 **What the script does:**
 - Downloads `docker-compose.local.yml` and `.env.example`
+- Downloads `upgrade_main.sh` for future upgrades
 - Automatically generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Generates and writes `ADMIN_PASSWORD` into `.env`
 - Creates `.env` file with generated secrets
@@ -66,6 +67,8 @@ docker compose -f docker-compose.local.yml logs sub2api | grep "admin password"
 # Access Web UI
 # http://localhost:8080
 ```
+
+LDAP 版运维请只看 `deploy/README_LDAP_ENTERPRISE.md`。不要对 LDAP 版执行网页在线更新或 `docker compose pull`。
 
 ### Method 2: Manual Deployment
 
@@ -178,9 +181,9 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 # Restart Sub2API only
 docker compose -f docker-compose.local.yml restart sub2api
 
-# Update to latest version
-docker compose -f docker-compose.local.yml pull
-docker compose -f docker-compose.local.yml up -d
+# LDAP edition: use the managed upgrade script instead
+cd /path/to/sub2api/deploy
+bash upgrade_main.sh
 
 # Remove all data (caution!)
 docker compose -f docker-compose.local.yml down
@@ -202,9 +205,9 @@ docker compose logs -f sub2api
 # Restart Sub2API only
 docker compose restart sub2api
 
-# Update to latest version
-docker compose pull
-docker compose up -d
+# LDAP edition: use the managed upgrade script instead
+cd /path/to/sub2api/deploy
+bash upgrade_main.sh
 
 # Remove all data (caution!)
 docker compose down -v

@@ -18,7 +18,7 @@ This runs:
 2. LDAP patch overlay
 3. generated code repair
 4. contract checks (backend LDAP contract, backend compile, frontend typecheck, frontend Vitest)
-5. deploy sanity checks (compose healthcheck/data dir, Dockerfile healthcheck, setup fallback, deploy script hardening, deploy docs)
+5. deploy sanity checks (compose healthcheck/data dir, Dockerfile healthcheck, setup fallback, single-script upgrade flow, deploy docs)
 6. backfill patch source branch from `main` (default target: `feature/ldap-support`)
 
 ## Publish
@@ -60,3 +60,5 @@ bash skills/sub2api-sync-ldap/scripts/sync.sh --skip-deploy-sanity
 4. LDAP customization is the primary objective: when upstream behavior conflicts with LDAP-only requirements, prefer the LDAP behavior even if it means deviating from upstream
 5. do not preserve unrelated customizations during conflict resolution unless they are explicitly requested; default to "official upstream + required LDAP changes only"
 6. preserve the Gemini customization that disables platform-side Gemini rate limiting; upstream 429 passthrough may remain, but local precheck, local persistence, scheduling exclusion, and ops "rate limited" display must stay disabled for Gemini unless explicitly requested otherwise
+7. customer-facing deployment guidance must stay single-entry: `deploy/upgrade_main.sh` for upgrade/restore and `deploy/README_LDAP_ENTERPRISE.md` as the main operations doc
+8. this fork must not prompt admins to self-update from upstream GitHub releases inside the web UI; server-side upgrades stay script-driven
