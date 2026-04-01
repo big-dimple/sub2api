@@ -43,7 +43,9 @@ rg -q 'chown -R 1000:1000 data' deploy/docker-deploy.sh || fail "docker-deploy.s
 rg -q 'generate_admin_password\(\)' deploy/docker-deploy.sh || fail "docker-deploy.sh missing admin password generation"
 rg -q '\^ADMIN_PASSWORD=' deploy/docker-deploy.sh || fail "docker-deploy.sh missing ADMIN_PASSWORD write-back"
 rg -q 'run_self_check_snapshot\(\)' deploy/docker-deploy.sh || fail "docker-deploy.sh missing self-check snapshot"
-rg -q 'upgrade_main.sh' deploy/docker-deploy.sh || fail "docker-deploy.sh missing upgrade_main.sh download"
+rg -q 'codeload.github.com/big-dimple/sub2api/tar.gz/refs/heads/main' deploy/docker-deploy.sh || fail "docker-deploy.sh missing fork snapshot bootstrap"
+rg -q 'docker build -t weishaw/sub2api:latest' deploy/docker-deploy.sh || fail "docker-deploy.sh missing local LDAP image build"
+rg -q 'docker compose -f "\$\{COMPOSE_FILE\}" up -d' deploy/docker-deploy.sh || fail "docker-deploy.sh missing auto-start compose step"
 [[ -f deploy/upgrade_main.sh ]] || fail "missing deploy/upgrade_main.sh"
 [[ -f deploy/upgrade_ldap_prod.sh ]] || fail "missing deploy/upgrade_ldap_prod.sh compatibility wrapper"
 rg -q 'git clone --quiet --depth 1 --branch' deploy/upgrade_main.sh || fail "upgrade_main.sh missing remote branch clone logic"
@@ -53,7 +55,8 @@ rg -q 'exec bash "\$TARGET_SCRIPT" "\$@"' deploy/upgrade_ldap_prod.sh || fail "u
 
 echo "Sanity: deploy docs"
 [[ -f deploy/README_LDAP_ENTERPRISE.md ]] || fail "missing deploy/README_LDAP_ENTERPRISE.md"
-rg -q 'bash upgrade_main.sh' deploy/README_LDAP_ENTERPRISE.md || fail "deploy/README_LDAP_ENTERPRISE.md missing upgrade_main.sh guidance"
-rg -q 'sudo chown -R 1000:1000 data' deploy/README.md || fail "deploy/README.md missing data permission guidance"
+rg -q 'curl -fsSL https://raw.githubusercontent.com/big-dimple/sub2api/main/deploy/docker-deploy.sh \| bash' deploy/README_LDAP_ENTERPRISE.md || fail "deploy/README_LDAP_ENTERPRISE.md missing one-line fresh deploy command"
+rg -q 'curl -fsSLo upgrade_main.sh https://raw.githubusercontent.com/big-dimple/sub2api/main/deploy/upgrade_main.sh && bash upgrade_main.sh' deploy/README_LDAP_ENTERPRISE.md || fail "deploy/README_LDAP_ENTERPRISE.md missing one-line upgrade command"
+! rg -q 'upgrade_ldap_prod.sh' deploy/README_LDAP_ENTERPRISE.md || fail "deploy/README_LDAP_ENTERPRISE.md should not mention deprecated upgrade_ldap_prod.sh"
 
 echo "OK: deploy sanity checks passed."

@@ -60,5 +60,6 @@ bash skills/sub2api-sync-ldap/scripts/sync.sh --skip-deploy-sanity
 4. LDAP customization is the primary objective: when upstream behavior conflicts with LDAP-only requirements, prefer the LDAP behavior even if it means deviating from upstream
 5. do not preserve unrelated customizations during conflict resolution unless they are explicitly requested; default to "official upstream + required LDAP changes only"
 6. preserve the Gemini customization that disables platform-side Gemini rate limiting; upstream 429 passthrough may remain, but local precheck, local persistence, scheduling exclusion, and ops "rate limited" display must stay disabled for Gemini unless explicitly requested otherwise
-7. customer-facing deployment guidance must stay single-entry: `deploy/upgrade_main.sh` for upgrade/restore and `deploy/README_LDAP_ENTERPRISE.md` as the main operations doc
-8. this fork must not prompt admins to self-update from upstream GitHub releases inside the web UI; server-side upgrades stay script-driven
+7. customer-facing deployment guidance must stay single-entry: keep only `deploy/README_LDAP_ENTERPRISE.md` as the LDAP operations doc, and do not edit upstream `README*.md` or `deploy/README.md` unless the user explicitly asks
+8. `deploy/README_LDAP_ENTERPRISE.md` must stay copy-first: fresh deploy and one-key upgrade each need a single-line command block that works as-is
+9. this fork must not prompt admins to self-update from upstream GitHub releases inside the web UI; server-side upgrades stay script-driven

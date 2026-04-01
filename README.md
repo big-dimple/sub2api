@@ -96,7 +96,7 @@ Nginx drops headers containing underscores by default (e.g. `session_id`), which
 
 One-click installation script that downloads pre-built binaries from GitHub Releases.
 
-> Note: this fork's public LDAP edition is published on `main` for Docker/source deployment. The binary installer below still targets official upstream releases and does not include this fork's LDAP customization. LDAP operators should use [`deploy/README_LDAP_ENTERPRISE.md`](deploy/README_LDAP_ENTERPRISE.md).
+> Note: this fork's public LDAP edition is published on `main` for Docker/source deployment. The binary installer below still targets official upstream releases and does not include this fork's LDAP customization.
 
 #### Prerequisites
 
@@ -138,12 +138,12 @@ The Setup Wizard will guide you through:
 
 #### Upgrade
 
-For this fork's LDAP Docker/source deployments, the in-app updater is intentionally disabled. Upgrade on the server with:
+You can upgrade directly from the **Admin Dashboard** by clicking the **Check for Updates** button in the top-left corner.
 
-```bash
-cd /path/to/sub2api/deploy
-bash upgrade_main.sh
-```
+The web interface will:
+- Check for new versions automatically
+- Download and apply updates with one click
+- Support rollback if needed
 
 #### Useful Commands
 

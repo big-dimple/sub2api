@@ -96,7 +96,7 @@ Nginx はデフォルトでアンダースコアを含むヘッダー（例: `se
 
 GitHub Releases からビルド済みバイナリをダウンロードするワンクリックインストールスクリプトです。
 
-> 注意: この fork の公開 LDAP 版は `main` ブランチの Docker / ソース配布を正とします。下記のバイナリインストーラは引き続き公式 upstream release を参照し、この fork の LDAP カスタマイズは含みません。LDAP 運用は [`deploy/README_LDAP_ENTERPRISE.md`](deploy/README_LDAP_ENTERPRISE.md) を参照してください。
+> 注意: この fork の公開 LDAP 版は `main` ブランチの Docker / ソース配布を正とします。下記のバイナリインストーラは引き続き公式 upstream release を参照し、この fork の LDAP カスタマイズは含みません。
 
 #### 前提条件
 
@@ -138,12 +138,12 @@ sudo systemctl enable sub2api
 
 #### アップグレード
 
-この fork の LDAP Docker / ソース配布では、Web 画面からのオンライン更新を無効化しています。標準アップグレード手順は次だけです:
+**管理ダッシュボード**の左上にある**アップデートを確認**ボタンをクリックすることで、ダッシュボードから直接アップグレードできます。
 
-```bash
-cd /path/to/sub2api/deploy
-bash upgrade_main.sh
-```
+Web インターフェースでは以下が可能です:
+- 新しいバージョンの自動確認
+- ワンクリックでのアップデートのダウンロードと適用
+- 必要に応じたロールバック
 
 #### よく使うコマンド
 

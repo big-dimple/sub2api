@@ -1,7 +1,7 @@
 # LDAP Review Context (2026-03-01)
 
 ## Inputs Read
-- `README_ENTERPRISE_LDAP_CN.md`
+- `deploy/README_LDAP_ENTERPRISE.md`
 - `DEV_GUIDE.md`
 - `backend/internal/service/auth_service.go`
 - `backend/internal/service/auth_service_ldap.go`
