@@ -20,4 +20,6 @@ cd /home/sub2api/deploy && bash upgrade_main.sh --restore latest
 
 首次管理员密码在 `/home/sub2api/deploy/.env` 的 `ADMIN_PASSWORD`。
 
-不要点后台网页在线更新。
+旧版本在升级前不要点后台网页在线更新。
+
+升级到当前版本后，网页入口已改为脚本升级提示，不再执行在线替换；日常仍以 `upgrade_main.sh` 为准。
