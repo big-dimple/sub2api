@@ -27,6 +27,17 @@ BACKFILL_BRANCH=""
 DO_BACKFILL=1
 DO_DEPLOY_SANITY=1
 
+commit_generated_artifacts() {
+    if [[ -z "$(git status --porcelain)" ]]; then
+        echo "OK: no generated sync artifacts to commit."
+        return 0
+    fi
+
+    git add -A
+    git commit -m "chore(ldap): regenerate sync artifacts" >/dev/null
+    echo "OK: committed generated sync artifacts."
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --publish)
@@ -133,6 +144,9 @@ if [[ "$DO_DEPLOY_SANITY" -eq 1 ]]; then
     bash "$SCRIPT_DIR/deploy-sanity.sh"
     STEP=$((STEP + 1))
 fi
+
+echo "[sync] finalize generated artifacts"
+commit_generated_artifacts
 
 if [[ "$DO_BACKFILL" -eq 1 ]]; then
     echo "[${STEP}/${TOTAL_STEPS}] backfill patch source branch (${BACKFILL_BRANCH})"

@@ -7,6 +7,10 @@ if [[ ! -f backend/internal/repository/wire.go || ! -f backend/internal/service/
     exit 1
 fi
 
+has_unmerged_file() {
+    [[ -n "$(git ls-files -u -- "$1")" ]]
+}
+
 resolve_repository_wire() {
     local file="backend/internal/repository/wire.go"
     perl -0pi -e 's{<<<<<<< HEAD\n\tNewSoraAccountRepository,[^\n]*\n\tNewScheduledTestPlanRepository,[^\n]*\n\tNewScheduledTestResultRepository,[^\n]*\n=======\n\tNewSoraAccountRepository,[^\n]*\n\tNewSoraGenerationRepository,[^\n]*\n>>>>>>> [^\n]+\n}{\tNewSoraAccountRepository, \/\/ Sora 账号扩展表仓储\n\tNewSoraGenerationRepository, \/\/ Sora 生成任务仓储\n\tNewScheduledTestPlanRepository,   \/\/ 定时测试计划仓储\n\tNewScheduledTestResultRepository, \/\/ 定时测试结果仓储\n}sg' "$file"
@@ -38,11 +42,25 @@ resolve_compose_healthchecks() {
     done
 }
 
+resolve_generated_conflicts() {
+    if has_unmerged_file backend/cmd/server/VERSION; then
+        git checkout --ours -- backend/cmd/server/VERSION >/dev/null
+        git add backend/cmd/server/VERSION
+    fi
+
+    if has_unmerged_file backend/cmd/server/wire_gen.go; then
+        # Keep the LDAP-side generated file long enough for generated-repair.sh to refresh it.
+        git checkout --theirs -- backend/cmd/server/wire_gen.go >/dev/null
+        git add backend/cmd/server/wire_gen.go
+    fi
+}
+
 echo "Auto-resolve: known merge conflicts"
 resolve_repository_wire
 resolve_service_wire
 resolve_public_settings_conflicts
 resolve_compose_healthchecks
+resolve_generated_conflicts
 
 if rg -n "^(<<<<<<<|=======|>>>>>>>)" \
     backend/internal/repository/wire.go \
@@ -74,6 +92,8 @@ git add \
     deploy/docker-compose.local.yml \
     deploy/docker-compose.standalone.yml \
     deploy/docker-compose.yml \
+    backend/cmd/server/VERSION \
+    backend/cmd/server/wire_gen.go \
     frontend/src/stores/app.ts \
     frontend/src/types/index.ts
 echo "OK: resolved known wire/settings/compose conflicts."

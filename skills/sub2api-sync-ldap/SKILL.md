@@ -10,7 +10,7 @@ Run in the `sub2api` repository root.
 ## Default
 
 ```bash
-bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh
+bash skills/sub2api-sync-ldap/scripts/sync.sh
 ```
 
 This runs:
@@ -24,7 +24,7 @@ This runs:
 ## Publish
 
 ```bash
-bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --publish
+bash skills/sub2api-sync-ldap/scripts/sync.sh --publish
 ```
 
 Publish behavior:
@@ -37,25 +37,25 @@ Publish behavior:
 
 ```bash
 # Override patch branch (default auto-detect: feature/ldap-patch -> feature/ldap-support)
-bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --patch-branch feature/ldap-support
+bash skills/sub2api-sync-ldap/scripts/sync.sh --patch-branch feature/ldap-support
 
 # Override backfill target branch
-bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --backfill-branch feature/ldap-support
+bash skills/sub2api-sync-ldap/scripts/sync.sh --backfill-branch feature/ldap-support
 
 # Run full backend test suites in gate stage (slower)
-bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --full-test
+bash skills/sub2api-sync-ldap/scripts/sync.sh --full-test
 
 # Disable backfill (not recommended)
-bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --no-backfill
+bash skills/sub2api-sync-ldap/scripts/sync.sh --no-backfill
 
 # Skip deploy sanity checks (not recommended)
-bash /root/.codex/skills/sub2api-sync-ldap/scripts/sync.sh --skip-deploy-sanity
+bash skills/sub2api-sync-ldap/scripts/sync.sh --skip-deploy-sanity
 ```
 
 ## Rules
 
 1. keep worktree clean before running
 2. do not commit backups or package-manager cache
-3. if overlay conflicts, resolve conflict in `feature/ldap-release`, commit, then continue `generated-repair.sh` -> `contract-gate.sh` -> `backfill-support.sh` -> publish
+3. if overlay conflicts, resolve conflict in `feature/ldap-release`, commit, then continue `generated-repair.sh` -> `contract-gate.sh` -> commit generated artifacts -> `backfill-support.sh` -> publish
 4. LDAP customization is the primary objective: when upstream behavior conflicts with LDAP-only requirements, prefer the LDAP behavior even if it means deviating from upstream
 5. do not preserve unrelated customizations during conflict resolution unless they are explicitly requested; default to "official upstream + required LDAP changes only"
