@@ -407,6 +407,9 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		// Beta 策略配置
 		adminSettings.GET("/beta-policy", h.Admin.Setting.GetBetaPolicySettings)
 		adminSettings.PUT("/beta-policy", h.Admin.Setting.UpdateBetaPolicySettings)
+		// LDAP/AD 接入测试与同步
+		adminSettings.POST("/ldap/test", h.Admin.Setting.TestLDAPConnection)
+		adminSettings.POST("/ldap/sync", h.Admin.Setting.SyncLDAPUsersNow)
 	}
 }
 

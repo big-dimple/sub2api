@@ -110,6 +110,7 @@ export interface PublicSettings {
   custom_endpoints: CustomEndpoint[]
   linuxdo_oauth_enabled: boolean
   backend_mode_enabled: boolean
+  ldap_enabled: boolean
   version: string
 }
 

@@ -1,0 +1,65 @@
+---
+name: sub2api-sync-ldap
+description: Synchronize LDAP customization onto latest Wei-Shaw/sub2api upstream and keep main releasable. Use when asked to pull latest official code, re-apply LDAP patch branch, regenerate wire/ent, run LDAP regression checks, and publish only when there are real branch changes.
+---
+
+# Sub2API LDAP Sync Skill
+
+Run in the `sub2api` repository root.
+
+## Default
+
+```bash
+bash skills/sub2api-sync-ldap/scripts/sync.sh
+```
+
+This runs:
+1. upstream preflight
+2. LDAP patch overlay
+3. generated code repair
+4. contract checks (backend LDAP contract, backend compile, frontend typecheck, frontend Vitest)
+5. deploy sanity checks (compose healthcheck/data dir, Dockerfile healthcheck, setup fallback, single-script upgrade flow, deploy docs)
+6. backfill patch source branch from `main` (default target: `feature/ldap-support`)
+
+## Publish
+
+```bash
+bash skills/sub2api-sync-ldap/scripts/sync.sh --publish
+```
+
+Publish behavior:
+1. push `main` only when it actually changed
+2. push backfill branch (default `feature/ldap-support`) when changed
+3. use fast-forward push when possible
+4. use `--force-with-lease` only when branch history rewrites are required
+
+## Options
+
+```bash
+# Override patch branch (default auto-detect: feature/ldap-patch -> feature/ldap-support)
+bash skills/sub2api-sync-ldap/scripts/sync.sh --patch-branch feature/ldap-support
+
+# Override backfill target branch
+bash skills/sub2api-sync-ldap/scripts/sync.sh --backfill-branch feature/ldap-support
+
+# Run full backend test suites in gate stage (slower)
+bash skills/sub2api-sync-ldap/scripts/sync.sh --full-test
+
+# Disable backfill (not recommended)
+bash skills/sub2api-sync-ldap/scripts/sync.sh --no-backfill
+
+# Skip deploy sanity checks (not recommended)
+bash skills/sub2api-sync-ldap/scripts/sync.sh --skip-deploy-sanity
+```
+
+## Rules
+
+1. keep worktree clean before running
+2. do not commit backups or package-manager cache
+3. if overlay conflicts, resolve conflict in `main`, commit, then continue `generated-repair.sh` -> `contract-gate.sh` -> commit generated artifacts -> `backfill-support.sh` -> publish
+4. LDAP customization is the primary objective: when upstream behavior conflicts with LDAP-only requirements, prefer the LDAP behavior even if it means deviating from upstream
+5. do not preserve unrelated customizations during conflict resolution unless they are explicitly requested; default to "official upstream + required LDAP changes only"
+6. preserve the Gemini customization that disables platform-side Gemini rate limiting; upstream 429 passthrough may remain, but local precheck, local persistence, scheduling exclusion, and ops "rate limited" display must stay disabled for Gemini unless explicitly requested otherwise
+7. customer-facing deployment guidance must stay single-entry: keep only `deploy/README_LDAP_ENTERPRISE.md` as the LDAP operations doc, and do not edit upstream `README*.md` or `deploy/README.md` unless the user explicitly asks
+8. `deploy/README_LDAP_ENTERPRISE.md` must stay copy-first: fresh deploy and one-key upgrade each need a single-line command block that works as-is
+9. this fork must not prompt admins to self-update from upstream GitHub releases inside the web UI; server-side upgrades stay script-driven
