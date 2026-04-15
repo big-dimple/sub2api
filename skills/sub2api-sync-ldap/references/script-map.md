@@ -34,6 +34,15 @@ Use when you need just the merge/overlay step.
 - overlays the LDAP patch branch
 - exits early if origin already matches the current upstream + patch state
 
+### `scripts/resume-after-conflict.sh`
+
+Use after you have resolved merge conflicts on the release branch and created the merge commit.
+
+- runs generated repair, contract gate, and deploy sanity
+- commits regenerated artifacts when needed
+- backfills `feature/ldap-support`
+- publishes by default unless `--no-publish` is supplied
+
 ### `scripts/generated-repair.sh`
 
 Use after successful overlay or after manual conflict resolution.
@@ -87,6 +96,9 @@ bash skills/sub2api-sync-ldap/scripts/sync.sh
 
 # Keep the sync local only
 bash skills/sub2api-sync-ldap/scripts/sync.sh --no-publish
+
+# Resume after a manual conflict resolution commit
+bash skills/sub2api-sync-ldap/scripts/resume-after-conflict.sh
 
 # Specify the patch branch explicitly
 bash skills/sub2api-sync-ldap/scripts/sync.sh --patch-branch feature/ldap-support

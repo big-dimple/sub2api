@@ -39,7 +39,7 @@ bash skills/sub2api-sync-ldap/scripts/sync.sh --no-publish
 1. Confirm the worktree is clean before running anything.
 2. Run `scripts/sync.sh` and treat GitHub publication as part of "done" unless the user explicitly asks for local-only work.
 3. Let `sync.sh` drive the normal path: preflight, overlay, generated repair, contract gate, deploy sanity, support-branch backfill, and publish.
-4. If the overlay merge conflicts, resolve them on `main`, commit the merge, then continue with `scripts/generated-repair.sh`, `scripts/contract-gate.sh`, `scripts/deploy-sanity.sh`, commit regenerated artifacts, `scripts/backfill-support.sh`, and finally `scripts/publish-release.sh`.
+4. If the overlay merge conflicts, resolve them on `main`, commit the merge, then continue with `scripts/resume-after-conflict.sh`.
 5. If you need manual conflict guidance, read [references/conflict-recovery.md](references/conflict-recovery.md).
 6. If you need policy or merge-priority guidance, read [references/policies.md](references/policies.md).
 7. If you need script-by-script behavior, options, or when to call a script directly, read [references/script-map.md](references/script-map.md).

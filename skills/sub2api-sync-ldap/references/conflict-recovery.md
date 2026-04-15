@@ -16,32 +16,12 @@ Finish with a releasable `main` that equals:
 2. Inspect conflicted files with `git diff --name-only --diff-filter=U` and resolve each file to "official upstream + required LDAP changes only".
 3. If a conflict is in generated output and the source-of-truth files are already correct, prefer a minimal temporary resolution that allows regeneration to succeed.
 4. When all conflicts are resolved, `git add` the files and create the merge commit.
-5. Run:
+5. Resume the rest of the flow with:
 
 ```bash
-bash skills/sub2api-sync-ldap/scripts/generated-repair.sh
-bash skills/sub2api-sync-ldap/scripts/contract-gate.sh
-bash skills/sub2api-sync-ldap/scripts/deploy-sanity.sh
+bash skills/sub2api-sync-ldap/scripts/resume-after-conflict.sh
 ```
-
-6. If those commands modify tracked files, commit the regenerated artifacts:
-
-```bash
-git add -A
-git commit -m "chore(ldap): regenerate sync artifacts"
-```
-
-7. Backfill the support branch:
-
-```bash
-bash skills/sub2api-sync-ldap/scripts/backfill-support.sh --release-branch main --support-branch feature/ldap-support
-```
-
-8. Publish the release branches unless the user explicitly asked for local-only work:
-
-```bash
-bash skills/sub2api-sync-ldap/scripts/publish-release.sh --release-branch main --also-branch feature/ldap-support
-```
+6. Use `--no-publish` only when the user explicitly asked for local-only work.
 
 ## Resolution Heuristics
 
