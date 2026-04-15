@@ -28,4 +28,5 @@ Read this file when you need merge priorities or release guardrails beyond the s
 - Start with a clean worktree.
 - Do not commit backup files, caches, or package-manager noise.
 - Commit generated artifacts if the sync flow regenerates them.
+- Treat GitHub publication as part of the done state unless the user explicitly asks for local-only work.
 - Push only when the resulting branch state actually changed.

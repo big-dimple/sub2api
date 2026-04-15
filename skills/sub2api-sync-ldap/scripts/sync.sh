@@ -7,11 +7,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 usage() {
     cat <<'EOF'
 Usage:
-  bash sync.sh [--publish] [--full-test] [--patch-branch <branch>] [--backfill-branch <branch>] [--no-backfill] [--skip-deploy-sanity]
+  bash sync.sh [--publish] [--no-publish] [--full-test] [--change-threshold <percent>] [--patch-branch <branch>] [--backfill-branch <branch>] [--no-backfill] [--skip-deploy-sanity]
 
 Options:
-  --publish               Push main (and backfill branch) only when actually changed.
+  --publish               Compatibility alias; publish is already the default.
+  --no-publish            Keep the sync local only.
   --full-test             Run full backend test suites in contract gate stage.
+  --change-threshold <n>  Override the upstream preflight drift threshold percentage.
   --patch-branch <name>   Use specific patch branch (default auto detect).
   --backfill-branch <name>  Target branch for backfill (default: patch branch or feature/ldap-support).
   --no-backfill           Disable automatic backfill.
@@ -20,8 +22,9 @@ Options:
 EOF
 }
 
-PUBLISH=0
+PUBLISH=1
 FULL_TEST=0
+CHANGE_THRESHOLD=""
 PATCH_BRANCH=""
 BACKFILL_BRANCH=""
 DO_BACKFILL=1
@@ -44,9 +47,21 @@ while [[ $# -gt 0 ]]; do
             PUBLISH=1
             shift
             ;;
+        --no-publish)
+            PUBLISH=0
+            shift
+            ;;
         --full-test)
             FULL_TEST=1
             shift
+            ;;
+        --change-threshold)
+            CHANGE_THRESHOLD="${2:-}"
+            if [[ -z "$CHANGE_THRESHOLD" ]]; then
+                echo "ERROR: --change-threshold requires a value."
+                exit 1
+            fi
+            shift 2
             ;;
         --patch-branch)
             PATCH_BRANCH="${2:-}"
@@ -109,14 +124,20 @@ fi
 if [[ "$DO_BACKFILL" -eq 1 ]]; then
     TOTAL_STEPS=$((TOTAL_STEPS + 1))
 fi
+if [[ "$PUBLISH" -eq 1 ]]; then
+    TOTAL_STEPS=$((TOTAL_STEPS + 1))
+fi
 STEP=1
 
 echo "[${STEP}/${TOTAL_STEPS}] preflight"
+PREFLIGHT_ARGS=()
 if [[ -n "$PATCH_BRANCH" ]]; then
-    bash "$SCRIPT_DIR/upstream-preflight.sh" --patch-branch "$PATCH_BRANCH"
-else
-    bash "$SCRIPT_DIR/upstream-preflight.sh"
+    PREFLIGHT_ARGS+=(--patch-branch "$PATCH_BRANCH")
 fi
+if [[ -n "$CHANGE_THRESHOLD" ]]; then
+    PREFLIGHT_ARGS+=(--change-threshold "$CHANGE_THRESHOLD")
+fi
+bash "$SCRIPT_DIR/upstream-preflight.sh" "${PREFLIGHT_ARGS[@]}"
 STEP=$((STEP + 1))
 
 echo "[${STEP}/${TOTAL_STEPS}] overlay"
@@ -151,11 +172,16 @@ commit_generated_artifacts
 if [[ "$DO_BACKFILL" -eq 1 ]]; then
     echo "[${STEP}/${TOTAL_STEPS}] backfill patch source branch (${BACKFILL_BRANCH})"
     bash "$SCRIPT_DIR/backfill-support.sh" --release-branch main --support-branch "$BACKFILL_BRANCH"
+    STEP=$((STEP + 1))
 fi
 
 if [[ "$PUBLISH" -eq 1 ]]; then
-    echo "[publish] main"
-    bash "$SCRIPT_DIR/publish-release.sh" --release-branch main --also-branch "$BACKFILL_BRANCH"
+    echo "[${STEP}/${TOTAL_STEPS}] publish release branches"
+    if [[ "$DO_BACKFILL" -eq 1 ]]; then
+        bash "$SCRIPT_DIR/publish-release.sh" --release-branch main --also-branch "$BACKFILL_BRANCH"
+    else
+        bash "$SCRIPT_DIR/publish-release.sh" --release-branch main
+    fi
 fi
 
 echo "DONE: LDAP sync workflow completed."

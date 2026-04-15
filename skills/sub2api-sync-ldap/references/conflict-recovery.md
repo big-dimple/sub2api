@@ -21,6 +21,7 @@ Finish with a releasable `main` that equals:
 ```bash
 bash skills/sub2api-sync-ldap/scripts/generated-repair.sh
 bash skills/sub2api-sync-ldap/scripts/contract-gate.sh
+bash skills/sub2api-sync-ldap/scripts/deploy-sanity.sh
 ```
 
 6. If those commands modify tracked files, commit the regenerated artifacts:
@@ -36,7 +37,7 @@ git commit -m "chore(ldap): regenerate sync artifacts"
 bash skills/sub2api-sync-ldap/scripts/backfill-support.sh --release-branch main --support-branch feature/ldap-support
 ```
 
-8. If the user asked to publish, push with:
+8. Publish the release branches unless the user explicitly asked for local-only work:
 
 ```bash
 bash skills/sub2api-sync-ldap/scripts/publish-release.sh --release-branch main --also-branch feature/ldap-support

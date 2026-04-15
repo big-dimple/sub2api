@@ -14,7 +14,7 @@ Default orchestrator. Runs, in order:
 4. `contract-gate.sh`
 5. `deploy-sanity.sh` unless skipped
 6. `backfill-support.sh` unless disabled
-7. `publish-release.sh` when `--publish` is supplied
+7. `publish-release.sh` by default unless `--no-publish` is supplied
 
 ## Direct-Use Scripts
 
@@ -24,6 +24,7 @@ Use when you only need to verify that upstream drift is still small enough for t
 
 - auto-detects patch branch: `feature/ldap-patch` then `feature/ldap-support`
 - fails fast if upstream changed too much around the LDAP touch points
+- accepts `--change-threshold <percent>` when you have reviewed upstream churn and want a higher guardrail than the default 40%
 
 ### `scripts/overlay-apply.sh`
 
@@ -81,11 +82,17 @@ Push helper for `main` plus one additional branch.
 ## Common Variants
 
 ```bash
-# Publish after sync
-bash skills/sub2api-sync-ldap/scripts/sync.sh --publish
+# Default full flow: sync, validate, backfill, publish
+bash skills/sub2api-sync-ldap/scripts/sync.sh
+
+# Keep the sync local only
+bash skills/sub2api-sync-ldap/scripts/sync.sh --no-publish
 
 # Specify the patch branch explicitly
 bash skills/sub2api-sync-ldap/scripts/sync.sh --patch-branch feature/ldap-support
+
+# Allow a higher reviewed preflight drift threshold
+bash skills/sub2api-sync-ldap/scripts/sync.sh --change-threshold 40
 
 # Specify a different backfill target
 bash skills/sub2api-sync-ldap/scripts/sync.sh --backfill-branch feature/ldap-support

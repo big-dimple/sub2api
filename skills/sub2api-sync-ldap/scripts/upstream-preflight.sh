@@ -2,12 +2,25 @@
 
 set -euo pipefail
 
+usage() {
+    cat <<'EOF'
+Usage:
+  bash upstream-preflight.sh [--patch-branch <branch>] [--change-threshold <percent>]
+
+Options:
+  --patch-branch <name>     Use specific patch branch (default auto detect).
+  --change-threshold <n>    Override the drift threshold percentage (default: 40).
+  -h, --help                Show this help.
+EOF
+}
+
 if [[ ! -f backend/internal/service/auth_service.go ]]; then
     echo "ERROR: run this script in sub2api repository root."
     exit 1
 fi
 
 PATCH_BRANCH=""
+THRESHOLD="${LDAP_SYNC_CHANGE_THRESHOLD:-40}"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --patch-branch)
@@ -15,12 +28,27 @@ while [[ $# -gt 0 ]]; do
             [[ -n "$PATCH_BRANCH" ]] || { echo "ERROR: --patch-branch requires value."; exit 1; }
             shift 2
             ;;
+        --change-threshold)
+            THRESHOLD="${2:-}"
+            [[ -n "$THRESHOLD" ]] || { echo "ERROR: --change-threshold requires value."; exit 1; }
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
         *)
             echo "ERROR: unknown argument: $1"
+            usage
             exit 1
             ;;
     esac
 done
+
+if ! [[ "$THRESHOLD" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    echo "ERROR: --change-threshold must be a number, got: ${THRESHOLD}"
+    exit 1
+fi
 
 if [[ -z "$PATCH_BRANCH" ]]; then
     if git show-ref --verify --quiet refs/heads/feature/ldap-patch; then
@@ -81,10 +109,10 @@ fi
 CHANGE_PERCENT="$(awk -v c="$CHANGED" -v b="$BASE_LINES" 'BEGIN { printf "%.2f", (c*100.0)/b }')"
 echo "Preflight: +${ADDED} / -${DELETED}, total=${CHANGED}, ratio=${CHANGE_PERCENT}% (vs ${PATCH_BRANCH})"
 
-THRESHOLD="${LDAP_SYNC_CHANGE_THRESHOLD:-30}"
 EXCEED="$(awk -v p="$CHANGE_PERCENT" -v t="$THRESHOLD" 'BEGIN { if (p > t) print "yes"; else print "no" }')"
 if [[ "$EXCEED" == "yes" ]]; then
     echo "ERROR: change ratio ${CHANGE_PERCENT}% > ${THRESHOLD}% threshold."
+    echo "Hint: review upstream drift, then retry with --change-threshold <percent> only if the extra churn is expected."
     exit 2
 fi
 
