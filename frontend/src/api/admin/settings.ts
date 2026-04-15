@@ -11,6 +11,14 @@ export interface DefaultSubscriptionSetting {
   validity_days: number
 }
 
+export interface LDAPGroupMapping {
+  ldap_group_dn: string
+  target_role: string
+  balance: number
+  concurrency: number
+  priority: number
+}
+
 /**
  * System settings interface
  */
@@ -85,6 +93,28 @@ export interface SystemSettings {
   oidc_connect_userinfo_email_path: string
   oidc_connect_userinfo_id_path: string
   oidc_connect_userinfo_username_path: string
+
+  // LDAP/AD settings
+  ldap_enabled: boolean
+  ldap_host: string
+  ldap_port: number
+  ldap_use_tls: boolean
+  ldap_start_tls: boolean
+  ldap_insecure_skip_verify: boolean
+  ldap_bind_dn: string
+  ldap_bind_password_configured: boolean
+  ldap_user_base_dn: string
+  ldap_user_filter: string
+  ldap_login_attr: string
+  ldap_uid_attr: string
+  ldap_email_attr: string
+  ldap_display_name_attr: string
+  ldap_department_attr: string
+  ldap_group_attr: string
+  ldap_allowed_group_dns: string[]
+  ldap_group_mappings: LDAPGroupMapping[]
+  ldap_sync_enabled: boolean
+  ldap_sync_interval_minutes: number
 
   // Model fallback configuration
   enable_model_fallback: boolean
@@ -207,6 +237,27 @@ export interface UpdateSettingsRequest {
   oidc_connect_userinfo_email_path?: string
   oidc_connect_userinfo_id_path?: string
   oidc_connect_userinfo_username_path?: string
+
+  ldap_enabled?: boolean
+  ldap_host?: string
+  ldap_port?: number
+  ldap_use_tls?: boolean
+  ldap_start_tls?: boolean
+  ldap_insecure_skip_verify?: boolean
+  ldap_bind_dn?: string
+  ldap_bind_password?: string
+  ldap_user_base_dn?: string
+  ldap_user_filter?: string
+  ldap_login_attr?: string
+  ldap_uid_attr?: string
+  ldap_email_attr?: string
+  ldap_display_name_attr?: string
+  ldap_department_attr?: string
+  ldap_group_attr?: string
+  ldap_allowed_group_dns?: string[]
+  ldap_group_mappings?: LDAPGroupMapping[]
+  ldap_sync_enabled?: boolean
+  ldap_sync_interval_minutes?: number
   enable_model_fallback?: boolean
   fallback_model_anthropic?: string
   fallback_model_openai?: string
@@ -576,7 +627,17 @@ export const settingsAPI = {
   getWebSearchEmulationConfig,
   updateWebSearchEmulationConfig,
   testWebSearchEmulation,
-  resetWebSearchUsage
+  resetWebSearchUsage,
+  testLDAPConnection: async () => {
+    const { data } = await apiClient.post<{ message: string }>('/admin/settings/ldap/test')
+    return data
+  },
+  syncLDAPUsersNow: async () => {
+    const { data } = await apiClient.post<{ checked: number; disabled: number; updated: number }>(
+      '/admin/settings/ldap/sync'
+    )
+    return data
+  }
 }
 
 export default settingsAPI

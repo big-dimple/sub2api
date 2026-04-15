@@ -93,6 +93,11 @@ func ProvideOpenAITokenProvider(
 	return p
 }
 
+// ProvideOAuthRefreshAPI creates OAuthRefreshAPI with the default distributed lock TTL.
+func ProvideOAuthRefreshAPI(accountRepo AccountRepository, tokenCache GeminiTokenCache) *OAuthRefreshAPI {
+	return NewOAuthRefreshAPI(accountRepo, tokenCache)
+}
+
 // ProvideGeminiTokenProvider creates GeminiTokenProvider with OAuthRefreshAPI injection
 func ProvideGeminiTokenProvider(
 	accountRepo AccountRepository,
@@ -409,7 +414,7 @@ var ProviderSet = wire.NewSet(
 	NewCompositeTokenCacheInvalidator,
 	wire.Bind(new(TokenCacheInvalidator), new(*CompositeTokenCacheInvalidator)),
 	NewAntigravityOAuthService,
-	NewOAuthRefreshAPI,
+	ProvideOAuthRefreshAPI,
 	ProvideGeminiTokenProvider,
 	NewGeminiMessagesCompatService,
 	ProvideAntigravityTokenProvider,
@@ -467,6 +472,7 @@ var ProviderSet = wire.NewSet(
 	NewPaymentService,
 	ProvidePaymentOrderExpiryService,
 	ProvideBalanceNotifyService,
+	ProviderSetExternalAuth,
 )
 
 // ProvidePaymentConfigService wraps NewPaymentConfigService to accept the named
