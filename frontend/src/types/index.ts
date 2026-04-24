@@ -182,6 +182,7 @@ export interface PublicSettings {
   oidc_oauth_enabled: boolean
   oidc_oauth_provider_name: string
   backend_mode_enabled: boolean
+  ldap_enabled: boolean
   version: string
   balance_low_notify_enabled: boolean
   account_quota_notify_enabled: boolean

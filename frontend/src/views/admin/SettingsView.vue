@@ -2116,6 +2116,149 @@
               </div>
             </div>
           </div>
+
+          <!-- LDAP / AD Settings -->
+          <div class="card" data-tour="settings-ldap-card">
+            <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                  LDAP / AD 身份接入
+                </h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  使用企业 LDAP/AD 账号登录，并按目录组同步用户基础权限。
+                </p>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  :disabled="ldapStore.isTesting"
+                  @click="testLdapConnection"
+                >
+                  测试连接
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  :disabled="ldapStore.isSyncing"
+                  @click="syncLdapNow"
+                >
+                  立即同步
+                </button>
+              </div>
+            </div>
+            <div class="space-y-5 p-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">启用 LDAP 登录</label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    启用后将关闭公开注册入口，用户通过 LDAP 凭据登录。
+                  </p>
+                </div>
+                <Toggle v-model="form.ldap_enabled" />
+              </div>
+
+              <div v-if="form.ldap_enabled" class="space-y-5 border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">LDAP Host</label>
+                    <input v-model="form.ldap_host" type="text" class="input font-mono text-sm" placeholder="ad.example.com" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Port</label>
+                    <input v-model.number="form.ldap_port" type="number" min="1" max="65535" class="input font-mono text-sm" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Bind DN</label>
+                    <input v-model="form.ldap_bind_dn" type="text" class="input font-mono text-sm" placeholder="cn=svc,ou=service,dc=example,dc=com" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                  <label class="flex items-center justify-between rounded border border-gray-200 px-4 py-3 dark:border-dark-700">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Use TLS / LDAPS</span>
+                    <Toggle v-model="form.ldap_use_tls" />
+                  </label>
+                  <label class="flex items-center justify-between rounded border border-gray-200 px-4 py-3 dark:border-dark-700">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">StartTLS</span>
+                    <Toggle v-model="form.ldap_start_tls" />
+                  </label>
+                  <label class="flex items-center justify-between rounded border border-gray-200 px-4 py-3 dark:border-dark-700">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">跳过证书校验</span>
+                    <Toggle v-model="form.ldap_insecure_skip_verify" />
+                  </label>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Bind Password</label>
+                    <input
+                      v-model="form.ldap_bind_password"
+                      type="password"
+                      class="input font-mono text-sm"
+                      :placeholder="form.ldap_bind_password_configured ? '已配置，留空不修改' : '请输入 Bind 密码'"
+                    />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">User Base DN</label>
+                    <input v-model="form.ldap_user_base_dn" type="text" class="input font-mono text-sm" placeholder="ou=users,dc=example,dc=com" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">User Filter</label>
+                    <input v-model="form.ldap_user_filter" type="text" class="input font-mono text-sm" placeholder="(&(objectClass=user)({login_attr}={login}))" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Login Attr</label>
+                    <input v-model="form.ldap_login_attr" type="text" class="input font-mono text-sm" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">UID Attr</label>
+                    <input v-model="form.ldap_uid_attr" type="text" class="input font-mono text-sm" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Email Attr</label>
+                    <input v-model="form.ldap_email_attr" type="text" class="input font-mono text-sm" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Display Name Attr</label>
+                    <input v-model="form.ldap_display_name_attr" type="text" class="input font-mono text-sm" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Group Attr</label>
+                    <input v-model="form.ldap_group_attr" type="text" class="input font-mono text-sm" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">允许的组 DN（每行一个）</label>
+                    <textarea v-model="form.ldap_allowed_group_dns_text" rows="4" class="input font-mono text-sm" />
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">组映射 JSON</label>
+                    <textarea v-model="form.ldap_group_mappings_text" rows="4" class="input font-mono text-sm" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <label class="flex items-center justify-between rounded border border-gray-200 px-4 py-3 dark:border-dark-700">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">启用定时同步</span>
+                    <Toggle v-model="form.ldap_sync_enabled" />
+                  </label>
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">同步间隔（分钟）</label>
+                    <input v-model.number="form.ldap_sync_interval_minutes" type="number" min="5" max="10080" class="input" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <!-- /Tab: Security — Registration, Turnstile, LinuxDo, OIDC -->
 
@@ -4813,6 +4956,7 @@ import { useClipboard } from "@/composables/useClipboard";
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
 import { useAppStore } from "@/stores";
 import { useAdminSettingsStore } from "@/stores/adminSettings";
+import { useLdapSettingsStore } from "@/stores/ldapSettings";
 import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
 import {
   isRegistrationEmailSuffixDomainValid,
@@ -4824,6 +4968,7 @@ import {
 const { t, locale } = useI18n();
 const appStore = useAppStore();
 const adminSettingsStore = useAdminSettingsStore();
+const ldapStore = useLdapSettingsStore();
 
 function localText(zh: string, en: string): string {
   return locale.value.startsWith("zh") ? zh : en;
@@ -4958,6 +5103,9 @@ type SettingsForm = Omit<
   wechat_connect_mp_enabled: boolean;
   wechat_connect_mobile_enabled: boolean;
   oidc_connect_client_secret: string;
+  ldap_bind_password: string;
+  ldap_allowed_group_dns_text: string;
+  ldap_group_mappings_text: string;
   force_email_on_third_party_signup: boolean;
   openai_advanced_scheduler_enabled: boolean;
 };
@@ -5084,6 +5232,30 @@ const form = reactive<SettingsForm>({
   oidc_connect_userinfo_email_path: "",
   oidc_connect_userinfo_id_path: "",
   oidc_connect_userinfo_username_path: "",
+  // LDAP settings
+  ldap_enabled: false,
+  ldap_host: "",
+  ldap_port: 389,
+  ldap_use_tls: false,
+  ldap_start_tls: false,
+  ldap_insecure_skip_verify: false,
+  ldap_bind_dn: "",
+  ldap_bind_password: "",
+  ldap_bind_password_configured: false,
+  ldap_user_base_dn: "",
+  ldap_user_filter: "({login_attr}={login})",
+  ldap_login_attr: "mail",
+  ldap_uid_attr: "uid",
+  ldap_email_attr: "mail",
+  ldap_display_name_attr: "displayName",
+  ldap_department_attr: "department",
+  ldap_group_attr: "memberOf",
+  ldap_allowed_group_dns: [],
+  ldap_group_mappings: [],
+  ldap_sync_enabled: true,
+  ldap_sync_interval_minutes: 1440,
+  ldap_allowed_group_dns_text: "",
+  ldap_group_mappings_text: "[]",
   // Model fallback
   enable_model_fallback: false,
   fallback_model_anthropic: "claude-3-5-sonnet-20241022",
@@ -5647,6 +5819,13 @@ async function loadSettings() {
     form.wechat_connect_open_app_secret = "";
     form.wechat_connect_mp_app_secret = "";
     form.wechat_connect_mobile_app_secret = "";
+    form.ldap_bind_password = "";
+    form.ldap_allowed_group_dns_text = (settings.ldap_allowed_group_dns || []).join("\n");
+    form.ldap_group_mappings_text = JSON.stringify(
+      settings.ldap_group_mappings || [],
+      null,
+      2,
+    );
     const wechatCapabilities = resolveWeChatConnectModeCapabilities(
       settings.wechat_connect_open_enabled,
       settings.wechat_connect_mp_enabled,
@@ -5881,6 +6060,24 @@ async function saveSettings() {
       form.wechat_connect_mobile_enabled,
       form.wechat_connect_mode,
     );
+    let parsedLDAPMappings: unknown[] = [];
+    try {
+      parsedLDAPMappings = JSON.parse(form.ldap_group_mappings_text || "[]");
+      if (!Array.isArray(parsedLDAPMappings)) {
+        throw new Error("LDAP group mappings must be an array");
+      }
+    } catch (error: unknown) {
+      appStore.showError(
+        `LDAP group mappings JSON invalid: ${
+          error instanceof Error ? error.message : "invalid json"
+        }`,
+      );
+      return;
+    }
+    const parsedLDAPAllowedDNs = (form.ldap_allowed_group_dns_text || "")
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
 
     const payload: UpdateSettingsRequest = {
       registration_enabled: form.registration_enabled,
@@ -5977,6 +6174,26 @@ async function saveSettings() {
       oidc_connect_userinfo_id_path: form.oidc_connect_userinfo_id_path,
       oidc_connect_userinfo_username_path:
         form.oidc_connect_userinfo_username_path,
+      ldap_enabled: form.ldap_enabled,
+      ldap_host: form.ldap_host,
+      ldap_port: form.ldap_port,
+      ldap_use_tls: form.ldap_use_tls,
+      ldap_start_tls: form.ldap_start_tls,
+      ldap_insecure_skip_verify: form.ldap_insecure_skip_verify,
+      ldap_bind_dn: form.ldap_bind_dn,
+      ldap_bind_password: form.ldap_bind_password || undefined,
+      ldap_user_base_dn: form.ldap_user_base_dn,
+      ldap_user_filter: form.ldap_user_filter,
+      ldap_login_attr: form.ldap_login_attr,
+      ldap_uid_attr: form.ldap_uid_attr,
+      ldap_email_attr: form.ldap_email_attr,
+      ldap_display_name_attr: form.ldap_display_name_attr,
+      ldap_department_attr: form.ldap_department_attr,
+      ldap_group_attr: form.ldap_group_attr,
+      ldap_allowed_group_dns: parsedLDAPAllowedDNs,
+      ldap_group_mappings: parsedLDAPMappings as UpdateSettingsRequest["ldap_group_mappings"],
+      ldap_sync_enabled: form.ldap_sync_enabled,
+      ldap_sync_interval_minutes: form.ldap_sync_interval_minutes,
       enable_model_fallback: form.enable_model_fallback,
       fallback_model_anthropic: form.fallback_model_anthropic,
       fallback_model_openai: form.fallback_model_openai,
@@ -6062,6 +6279,13 @@ async function saveSettings() {
     form.wechat_connect_open_app_secret = "";
     form.wechat_connect_mp_app_secret = "";
     form.wechat_connect_mobile_app_secret = "";
+    form.ldap_bind_password = "";
+    form.ldap_allowed_group_dns_text = (updated.ldap_allowed_group_dns || []).join("\n");
+    form.ldap_group_mappings_text = JSON.stringify(
+      updated.ldap_group_mappings || [],
+      null,
+      2,
+    );
     const updatedWechatCapabilities = resolveWeChatConnectModeCapabilities(
       updated.wechat_connect_open_enabled,
       updated.wechat_connect_mp_enabled,
@@ -6096,6 +6320,38 @@ async function saveSettings() {
     );
   } finally {
     saving.value = false;
+  }
+}
+
+async function testLdapConnection() {
+  try {
+    const result = await ldapStore.testConnection();
+    appStore.showSuccess(result.message || "LDAP connection test succeeded");
+  } catch (error: unknown) {
+    appStore.showError(
+      `LDAP connection test failed: ${
+        error instanceof Error ? error.message : "unknown error"
+      }`,
+    );
+  }
+}
+
+async function syncLdapNow() {
+  if (!window.confirm("Start LDAP user sync now? This may take some time.")) {
+    return;
+  }
+
+  try {
+    const result = await ldapStore.syncNow();
+    appStore.showSuccess(
+      `LDAP sync completed. Checked: ${result.checked}, updated: ${result.updated}, disabled: ${result.disabled}`,
+    );
+  } catch (error: unknown) {
+    appStore.showError(
+      `LDAP sync failed: ${
+        error instanceof Error ? error.message : "unknown error"
+      }`,
+    );
   }
 }
 
