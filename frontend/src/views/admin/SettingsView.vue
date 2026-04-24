@@ -2132,7 +2132,7 @@
                 <button
                   type="button"
                   class="btn btn-secondary btn-sm"
-                  :disabled="ldapStore.isTesting"
+                  :disabled="ldapTesting"
                   @click="testLdapConnection"
                 >
                   测试连接
@@ -2140,7 +2140,7 @@
                 <button
                   type="button"
                   class="btn btn-secondary btn-sm"
-                  :disabled="ldapStore.isSyncing"
+                  :disabled="ldapSyncing"
                   @click="syncLdapNow"
                 >
                   立即同步
@@ -4956,7 +4956,6 @@ import { useClipboard } from "@/composables/useClipboard";
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
 import { useAppStore } from "@/stores";
 import { useAdminSettingsStore } from "@/stores/adminSettings";
-import { useLdapSettingsStore } from "@/stores/ldapSettings";
 import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
 import {
   isRegistrationEmailSuffixDomainValid,
@@ -4968,7 +4967,6 @@ import {
 const { t, locale } = useI18n();
 const appStore = useAppStore();
 const adminSettingsStore = useAdminSettingsStore();
-const ldapStore = useLdapSettingsStore();
 
 function localText(zh: string, en: string): string {
   return locale.value.startsWith("zh") ? zh : en;
@@ -5014,6 +5012,8 @@ const saving = ref(false);
 const testingSmtp = ref(false);
 const sendingTestEmail = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
+const ldapTesting = ref(false);
+const ldapSyncing = ref(false);
 const testEmailAddress = ref("");
 const registrationEmailSuffixWhitelistTags = ref<string[]>([]);
 const registrationEmailSuffixWhitelistDraft = ref("");
@@ -6324,8 +6324,9 @@ async function saveSettings() {
 }
 
 async function testLdapConnection() {
+  ldapTesting.value = true;
   try {
-    const result = await ldapStore.testConnection();
+    const result = await adminAPI.settings.testLDAPConnection();
     appStore.showSuccess(result.message || "LDAP connection test succeeded");
   } catch (error: unknown) {
     appStore.showError(
@@ -6333,6 +6334,8 @@ async function testLdapConnection() {
         error instanceof Error ? error.message : "unknown error"
       }`,
     );
+  } finally {
+    ldapTesting.value = false;
   }
 }
 
@@ -6341,8 +6344,9 @@ async function syncLdapNow() {
     return;
   }
 
+  ldapSyncing.value = true;
   try {
-    const result = await ldapStore.syncNow();
+    const result = await adminAPI.settings.syncLDAPUsersNow();
     appStore.showSuccess(
       `LDAP sync completed. Checked: ${result.checked}, updated: ${result.updated}, disabled: ${result.disabled}`,
     );
@@ -6352,6 +6356,8 @@ async function syncLdapNow() {
         error instanceof Error ? error.message : "unknown error"
       }`,
     );
+  } finally {
+    ldapSyncing.value = false;
   }
 }
 
