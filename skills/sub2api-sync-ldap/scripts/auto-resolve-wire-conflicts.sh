@@ -19,6 +19,7 @@ resolve_repository_wire() {
 resolve_service_wire() {
     local file="backend/internal/service/wire.go"
     perl -0pi -e 's{<<<<<<< HEAD\n\tProvideScheduledTestService,\n\tProvideScheduledTestRunnerService,\n=======\n\tProviderSetExternalAuth,\n>>>>>>> [^\n]+\n}{\tProvideScheduledTestService,\n\tProvideScheduledTestRunnerService,\n\tProviderSetExternalAuth,\n}sg' "$file"
+    perl -0pi -e 's{\n// ProvideOAuthRefreshAPI creates OAuthRefreshAPI with the default lock TTL\.\nfunc ProvideOAuthRefreshAPI\(accountRepo AccountRepository, tokenCache GeminiTokenCache\) \*OAuthRefreshAPI \{\n\treturn NewOAuthRefreshAPI\(accountRepo, tokenCache\)\n\}\n(?=.*// ProvideOAuthRefreshAPI creates OAuthRefreshAPI with the default distributed lock TTL\.)}{}sg' "$file"
 }
 
 resolve_public_settings_conflicts() {

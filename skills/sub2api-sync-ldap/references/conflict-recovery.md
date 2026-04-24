@@ -29,3 +29,11 @@ bash skills/sub2api-sync-ldap/scripts/resume-after-conflict.sh
 - Keep validation and deploy safety checks intact.
 - Remove orphaned provider or generated-code references if upstream moved them and the implementation no longer exists.
 - Prefer regenerating Wire/Ent output over hand-editing generated files beyond the minimum needed to unblock generation.
+
+## Large Upstream Churn Notes
+
+- If upstream has heavily refactored `frontend/src/views/admin/SettingsView.vue`, keep the upstream tab/page structure and re-add the LDAP card, form fields, payload fields, and test/sync actions. Do not paste the old LDAP branch's whole settings page over upstream; it can silently revert newer payment, WeChat, OIDC, and auth-source-default behavior.
+- In `SettingsView.vue`, avoid initializing the LDAP Pinia store at setup/module scope unless all tests install Pinia. A safer conflict resolution is to use local `ldapTesting`/`ldapSyncing` refs and call `adminAPI.settings.testLDAPConnection()` / `syncLDAPUsersNow()` directly from the LDAP card actions.
+- In `backend/internal/handler/admin/setting_handler.go`, prefer the upstream `payload := dto.SystemSettings{...}` plus `systemSettingsResponseData(...)` response path, then add LDAP fields to the payload. Do not switch back to the older direct `response.Success(c, dto.SystemSettings{...})` path because it drops newer auth-source-default response wrapping.
+- If `backend/internal/service/wire.go` compiles with `ProvideOAuthRefreshAPI redeclared`, keep the newer single provider implementation and remove the duplicate from the LDAP branch.
+- If Ent generation fails before regeneration with `UserMutation.SetAuthSource` or `User.AuthSource` missing, generated files are inconsistent. Keep `backend/ent/schema/user.go` as the source of truth, add only the minimal temporary generated field/mutation methods needed to let `go generate ./ent` compile, then rerun `generated-repair.sh` so Ent overwrites the temporary bootstrap.
