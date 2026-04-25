@@ -52,26 +52,46 @@ func (m *stubExternalAuth) Stop()  {}
 // stubRefreshTokenCache 模拟 Refresh Token 的缓存存储
 type stubRefreshTokenCache struct{}
 
-func (s *stubRefreshTokenCache) StoreRefreshToken(ctx context.Context, tokenHash string, data *service.RefreshTokenData, ttl time.Duration) error { return nil }
-func (s *stubRefreshTokenCache) GetRefreshToken(ctx context.Context, tokenHash string) (*service.RefreshTokenData, error) { return nil, nil }
-func (s *stubRefreshTokenCache) DeleteRefreshToken(ctx context.Context, tokenHash string) error { return nil }
-func (s *stubRefreshTokenCache) DeleteUserRefreshTokens(ctx context.Context, userID int64) error { return nil }
-func (s *stubRefreshTokenCache) DeleteTokenFamily(ctx context.Context, familyID string) error { return nil }
-func (s *stubRefreshTokenCache) AddToUserTokenSet(ctx context.Context, userID int64, tokenHash string, ttl time.Duration) error { return nil }
-func (s *stubRefreshTokenCache) AddToFamilyTokenSet(ctx context.Context, familyID string, tokenHash string, ttl time.Duration) error { return nil }
-func (s *stubRefreshTokenCache) GetUserTokenHashes(ctx context.Context, userID int64) ([]string, error) { return nil, nil }
-func (s *stubRefreshTokenCache) GetFamilyTokenHashes(ctx context.Context, familyID string) ([]string, error) { return nil, nil }
-func (s *stubRefreshTokenCache) IsTokenInFamily(ctx context.Context, familyID string, tokenHash string) (bool, error) { return true, nil }
+func (s *stubRefreshTokenCache) StoreRefreshToken(ctx context.Context, tokenHash string, data *service.RefreshTokenData, ttl time.Duration) error {
+	return nil
+}
+func (s *stubRefreshTokenCache) GetRefreshToken(ctx context.Context, tokenHash string) (*service.RefreshTokenData, error) {
+	return nil, nil
+}
+func (s *stubRefreshTokenCache) DeleteRefreshToken(ctx context.Context, tokenHash string) error {
+	return nil
+}
+func (s *stubRefreshTokenCache) DeleteUserRefreshTokens(ctx context.Context, userID int64) error {
+	return nil
+}
+func (s *stubRefreshTokenCache) DeleteTokenFamily(ctx context.Context, familyID string) error {
+	return nil
+}
+func (s *stubRefreshTokenCache) AddToUserTokenSet(ctx context.Context, userID int64, tokenHash string, ttl time.Duration) error {
+	return nil
+}
+func (s *stubRefreshTokenCache) AddToFamilyTokenSet(ctx context.Context, familyID string, tokenHash string, ttl time.Duration) error {
+	return nil
+}
+func (s *stubRefreshTokenCache) GetUserTokenHashes(ctx context.Context, userID int64) ([]string, error) {
+	return nil, nil
+}
+func (s *stubRefreshTokenCache) GetFamilyTokenHashes(ctx context.Context, familyID string) ([]string, error) {
+	return nil, nil
+}
+func (s *stubRefreshTokenCache) IsTokenInFamily(ctx context.Context, familyID string, tokenHash string) (bool, error) {
+	return true, nil
+}
 
 func TestLDAPLoginContract(t *testing.T) {
 	// 1. 设置精简依赖
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
-			Secret:                 "test-secret",
+			Secret:                   "test-secret",
 			AccessTokenExpireMinutes: 60,
 		},
 	}
-	
+
 	// 启用 LDAP 设置
 	settingRepo := newStubSettingRepo()
 	settingRepo.SetAll(map[string]string{
@@ -108,7 +128,7 @@ func TestLDAPLoginContract(t *testing.T) {
 		nil, // entClient
 		userRepo,
 		extAuth,
-		nil, // redeemRepo
+		nil,                      // redeemRepo
 		&stubRefreshTokenCache{}, // refreshTokenCache
 		cfg,
 		settingService,
@@ -117,13 +137,14 @@ func TestLDAPLoginContract(t *testing.T) {
 		nil, // emailQueueService
 		nil, // promoService
 		nil, // defaultSubAssigner
+		nil, // affiliateService
 	)
 
 	// 2. 初始化路由
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	authHandler := handler.NewAuthHandler(cfg, authService, nil, settingService, nil, nil, nil)
-	
+
 	v1 := r.Group("/api/v1")
 	v1.POST("/auth/login", authHandler.Login)
 
@@ -134,24 +155,24 @@ func TestLDAPLoginContract(t *testing.T) {
 			"password": "secret",
 		}
 		jsonBody, _ := json.Marshal(body)
-		
+
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
-		
+
 		require.Equal(t, http.StatusOK, w.Code)
-		
+
 		var resp map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		require.NoError(t, err)
-		
+
 		require.Equal(t, float64(0), resp["code"]) // 成功 code 为 0
-		
+
 		data := resp["data"].(map[string]interface{})
 		require.NotEmpty(t, data["access_token"])
-		
+
 		user := data["user"].(map[string]interface{})
 		require.Equal(t, "ldap_user@example.com", user["email"])
 		require.Equal(t, "ldap", user["auth_source"])
@@ -164,13 +185,13 @@ func TestLDAPLoginContract(t *testing.T) {
 			"password": "wrong",
 		}
 		jsonBody, _ := json.Marshal(body)
-		
+
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
-		
+
 		require.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }
