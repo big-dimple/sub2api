@@ -56,6 +56,7 @@ func firstNonEmpty(values ...string) string {
 type SettingHandler struct {
 	settingService       *service.SettingService
 	emailService         *service.EmailService
+	externalAuth         service.ExternalAuthProvider
 	turnstileService     *service.TurnstileService
 	opsService           *service.OpsService
 	paymentConfigService *service.PaymentConfigService
@@ -63,10 +64,11 @@ type SettingHandler struct {
 }
 
 // NewSettingHandler 创建系统设置处理器
-func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService) *SettingHandler {
+func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, externalAuth service.ExternalAuthProvider, turnstileService *service.TurnstileService, opsService *service.OpsService, paymentConfigService *service.PaymentConfigService, paymentService *service.PaymentService) *SettingHandler {
 	return &SettingHandler{
 		settingService:       settingService,
 		emailService:         emailService,
+		externalAuth:         externalAuth,
 		turnstileService:     turnstileService,
 		opsService:           opsService,
 		paymentConfigService: paymentConfigService,
@@ -169,6 +171,26 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		OIDCConnectUserInfoEmailPath:           settings.OIDCConnectUserInfoEmailPath,
 		OIDCConnectUserInfoIDPath:              settings.OIDCConnectUserInfoIDPath,
 		OIDCConnectUserInfoUsernamePath:        settings.OIDCConnectUserInfoUsernamePath,
+		LDAPEnabled:                            settings.LDAPEnabled,
+		LDAPHost:                               settings.LDAPHost,
+		LDAPPort:                               settings.LDAPPort,
+		LDAPUseTLS:                             settings.LDAPUseTLS,
+		LDAPStartTLS:                           settings.LDAPStartTLS,
+		LDAPInsecureSkipVerify:                 settings.LDAPInsecureSkipVerify,
+		LDAPBindDN:                             settings.LDAPBindDN,
+		LDAPBindPasswordConfigured:             settings.LDAPBindPasswordConfigured,
+		LDAPUserBaseDN:                         settings.LDAPUserBaseDN,
+		LDAPUserFilter:                         settings.LDAPUserFilter,
+		LDAPLoginAttr:                          settings.LDAPLoginAttr,
+		LDAPUIDAttr:                            settings.LDAPUIDAttr,
+		LDAPEmailAttr:                          settings.LDAPEmailAttr,
+		LDAPDisplayNameAttr:                    settings.LDAPDisplayNameAttr,
+		LDAPDepartmentAttr:                     settings.LDAPDepartmentAttr,
+		LDAPGroupAttr:                          settings.LDAPGroupAttr,
+		LDAPAllowedGroupDNs:                    settings.LDAPAllowedGroupDNs,
+		LDAPGroupMappings:                      toDTOLDAPGroupMappings(settings.LDAPGroupMappings),
+		LDAPSyncEnabled:                        settings.LDAPSyncEnabled,
+		LDAPSyncIntervalMinutes:                settings.LDAPSyncIntervalMinutes,
 		SiteName:                               settings.SiteName,
 		SiteLogo:                               settings.SiteLogo,
 		SiteSubtitle:                           settings.SiteSubtitle,
@@ -321,6 +343,28 @@ type UpdateSettingsRequest struct {
 	OIDCConnectUserInfoEmailPath    string `json:"oidc_connect_userinfo_email_path"`
 	OIDCConnectUserInfoIDPath       string `json:"oidc_connect_userinfo_id_path"`
 	OIDCConnectUserInfoUsernamePath string `json:"oidc_connect_userinfo_username_path"`
+
+	// LDAP/AD identity integration
+	LDAPEnabled             bool                   `json:"ldap_enabled"`
+	LDAPHost                string                 `json:"ldap_host"`
+	LDAPPort                int                    `json:"ldap_port"`
+	LDAPUseTLS              bool                   `json:"ldap_use_tls"`
+	LDAPStartTLS            bool                   `json:"ldap_start_tls"`
+	LDAPInsecureSkipVerify  bool                   `json:"ldap_insecure_skip_verify"`
+	LDAPBindDN              string                 `json:"ldap_bind_dn"`
+	LDAPBindPassword        string                 `json:"ldap_bind_password"`
+	LDAPUserBaseDN          string                 `json:"ldap_user_base_dn"`
+	LDAPUserFilter          string                 `json:"ldap_user_filter"`
+	LDAPLoginAttr           string                 `json:"ldap_login_attr"`
+	LDAPUIDAttr             string                 `json:"ldap_uid_attr"`
+	LDAPEmailAttr           string                 `json:"ldap_email_attr"`
+	LDAPDisplayNameAttr     string                 `json:"ldap_display_name_attr"`
+	LDAPDepartmentAttr      string                 `json:"ldap_department_attr"`
+	LDAPGroupAttr           string                 `json:"ldap_group_attr"`
+	LDAPAllowedGroupDNs     []string               `json:"ldap_allowed_group_dns"`
+	LDAPGroupMappings       []dto.LDAPGroupMapping `json:"ldap_group_mappings"`
+	LDAPSyncEnabled         bool                   `json:"ldap_sync_enabled"`
+	LDAPSyncIntervalMinutes int                    `json:"ldap_sync_interval_minutes"`
 
 	// OEM设置
 	SiteName                    string                `json:"site_name"`
@@ -852,6 +896,54 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	// LDAP 参数验证
+	if req.LDAPPort <= 0 {
+		req.LDAPPort = 389
+	}
+	if req.LDAPSyncIntervalMinutes <= 0 {
+		req.LDAPSyncIntervalMinutes = 1440
+	}
+	req.LDAPHost = strings.TrimSpace(req.LDAPHost)
+	req.LDAPBindDN = strings.TrimSpace(req.LDAPBindDN)
+	req.LDAPUserBaseDN = strings.TrimSpace(req.LDAPUserBaseDN)
+	req.LDAPUserFilter = strings.TrimSpace(req.LDAPUserFilter)
+	req.LDAPLoginAttr = strings.TrimSpace(req.LDAPLoginAttr)
+	req.LDAPUIDAttr = strings.TrimSpace(req.LDAPUIDAttr)
+	req.LDAPEmailAttr = strings.TrimSpace(req.LDAPEmailAttr)
+	req.LDAPDisplayNameAttr = strings.TrimSpace(req.LDAPDisplayNameAttr)
+	req.LDAPDepartmentAttr = strings.TrimSpace(req.LDAPDepartmentAttr)
+	req.LDAPGroupAttr = strings.TrimSpace(req.LDAPGroupAttr)
+
+	if req.LDAPEnabled {
+		if req.LDAPHost == "" {
+			response.BadRequest(c, "LDAP host is required when LDAP is enabled")
+			return
+		}
+		if req.LDAPUserBaseDN == "" {
+			response.BadRequest(c, "LDAP user base DN is required when LDAP is enabled")
+			return
+		}
+		if req.LDAPLoginAttr == "" {
+			response.BadRequest(c, "LDAP login attribute is required when LDAP is enabled")
+			return
+		}
+		if req.LDAPUIDAttr == "" {
+			response.BadRequest(c, "LDAP UID attribute is required when LDAP is enabled")
+			return
+		}
+		if req.LDAPUseTLS && req.LDAPStartTLS {
+			response.BadRequest(c, "LDAP use_tls and start_tls cannot both be enabled")
+			return
+		}
+		if req.LDAPBindPassword == "" {
+			if previousSettings.LDAPBindPassword == "" {
+				response.BadRequest(c, "LDAP bind password is required when LDAP is enabled")
+				return
+			}
+			req.LDAPBindPassword = previousSettings.LDAPBindPassword
+		}
+	}
+
 	// “购买订阅”页面配置验证
 	purchaseEnabled := previousSettings.PurchaseSubscriptionEnabled
 	if req.PurchaseSubscriptionEnabled != nil {
@@ -1150,6 +1242,26 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		MaxClaudeCodeVersion:             req.MaxClaudeCodeVersion,
 		AllowUngroupedKeyScheduling:      req.AllowUngroupedKeyScheduling,
 		BackendModeEnabled:               req.BackendModeEnabled,
+		LDAPEnabled:                      req.LDAPEnabled,
+		LDAPHost:                         req.LDAPHost,
+		LDAPPort:                         req.LDAPPort,
+		LDAPUseTLS:                       req.LDAPUseTLS,
+		LDAPStartTLS:                     req.LDAPStartTLS,
+		LDAPInsecureSkipVerify:           req.LDAPInsecureSkipVerify,
+		LDAPBindDN:                       req.LDAPBindDN,
+		LDAPBindPassword:                 req.LDAPBindPassword,
+		LDAPUserBaseDN:                   req.LDAPUserBaseDN,
+		LDAPUserFilter:                   req.LDAPUserFilter,
+		LDAPLoginAttr:                    req.LDAPLoginAttr,
+		LDAPUIDAttr:                      req.LDAPUIDAttr,
+		LDAPEmailAttr:                    req.LDAPEmailAttr,
+		LDAPDisplayNameAttr:              req.LDAPDisplayNameAttr,
+		LDAPDepartmentAttr:               req.LDAPDepartmentAttr,
+		LDAPGroupAttr:                    req.LDAPGroupAttr,
+		LDAPAllowedGroupDNs:              req.LDAPAllowedGroupDNs,
+		LDAPGroupMappings:                fromDTOLDAPGroupMappings(req.LDAPGroupMappings),
+		LDAPSyncEnabled:                  req.LDAPSyncEnabled,
+		LDAPSyncIntervalMinutes:          req.LDAPSyncIntervalMinutes,
 		OpsMonitoringEnabled: func() bool {
 			if req.OpsMonitoringEnabled != nil {
 				return *req.OpsMonitoringEnabled
@@ -1441,6 +1553,26 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OIDCConnectUserInfoEmailPath:           updatedSettings.OIDCConnectUserInfoEmailPath,
 		OIDCConnectUserInfoIDPath:              updatedSettings.OIDCConnectUserInfoIDPath,
 		OIDCConnectUserInfoUsernamePath:        updatedSettings.OIDCConnectUserInfoUsernamePath,
+		LDAPEnabled:                            updatedSettings.LDAPEnabled,
+		LDAPHost:                               updatedSettings.LDAPHost,
+		LDAPPort:                               updatedSettings.LDAPPort,
+		LDAPUseTLS:                             updatedSettings.LDAPUseTLS,
+		LDAPStartTLS:                           updatedSettings.LDAPStartTLS,
+		LDAPInsecureSkipVerify:                 updatedSettings.LDAPInsecureSkipVerify,
+		LDAPBindDN:                             updatedSettings.LDAPBindDN,
+		LDAPBindPasswordConfigured:             updatedSettings.LDAPBindPasswordConfigured,
+		LDAPUserBaseDN:                         updatedSettings.LDAPUserBaseDN,
+		LDAPUserFilter:                         updatedSettings.LDAPUserFilter,
+		LDAPLoginAttr:                          updatedSettings.LDAPLoginAttr,
+		LDAPUIDAttr:                            updatedSettings.LDAPUIDAttr,
+		LDAPEmailAttr:                          updatedSettings.LDAPEmailAttr,
+		LDAPDisplayNameAttr:                    updatedSettings.LDAPDisplayNameAttr,
+		LDAPDepartmentAttr:                     updatedSettings.LDAPDepartmentAttr,
+		LDAPGroupAttr:                          updatedSettings.LDAPGroupAttr,
+		LDAPAllowedGroupDNs:                    updatedSettings.LDAPAllowedGroupDNs,
+		LDAPGroupMappings:                      toDTOLDAPGroupMappings(updatedSettings.LDAPGroupMappings),
+		LDAPSyncEnabled:                        updatedSettings.LDAPSyncEnabled,
+		LDAPSyncIntervalMinutes:                updatedSettings.LDAPSyncIntervalMinutes,
 		SiteName:                               updatedSettings.SiteName,
 		SiteLogo:                               updatedSettings.SiteLogo,
 		SiteSubtitle:                           updatedSettings.SiteSubtitle,
@@ -1734,6 +1866,39 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.OIDCConnectUserInfoUsernamePath != after.OIDCConnectUserInfoUsernamePath {
 		changed = append(changed, "oidc_connect_userinfo_username_path")
+	}
+	if before.LDAPEnabled != after.LDAPEnabled {
+		changed = append(changed, "ldap_enabled")
+	}
+	if before.LDAPHost != after.LDAPHost {
+		changed = append(changed, "ldap_host")
+	}
+	if before.LDAPPort != after.LDAPPort {
+		changed = append(changed, "ldap_port")
+	}
+	if before.LDAPUseTLS != after.LDAPUseTLS {
+		changed = append(changed, "ldap_use_tls")
+	}
+	if before.LDAPStartTLS != after.LDAPStartTLS {
+		changed = append(changed, "ldap_start_tls")
+	}
+	if before.LDAPBindDN != after.LDAPBindDN {
+		changed = append(changed, "ldap_bind_dn")
+	}
+	if req.LDAPBindPassword != "" {
+		changed = append(changed, "ldap_bind_password")
+	}
+	if before.LDAPUserBaseDN != after.LDAPUserBaseDN {
+		changed = append(changed, "ldap_user_base_dn")
+	}
+	if before.LDAPUserFilter != after.LDAPUserFilter {
+		changed = append(changed, "ldap_user_filter")
+	}
+	if before.LDAPSyncEnabled != after.LDAPSyncEnabled {
+		changed = append(changed, "ldap_sync_enabled")
+	}
+	if before.LDAPSyncIntervalMinutes != after.LDAPSyncIntervalMinutes {
+		changed = append(changed, "ldap_sync_interval_minutes")
 	}
 	if before.SiteName != after.SiteName {
 		changed = append(changed, "site_name")
@@ -2076,6 +2241,34 @@ func equalNotifyEmailEntries(a, b []service.NotifyEmailEntry) bool {
 	return true
 }
 
+func toDTOLDAPGroupMappings(in []service.LDAPGroupMapping) []dto.LDAPGroupMapping {
+	out := make([]dto.LDAPGroupMapping, 0, len(in))
+	for _, item := range in {
+		out = append(out, dto.LDAPGroupMapping{
+			LDAPGroupDN: item.LDAPGroupDN,
+			TargetRole:  item.TargetRole,
+			Balance:     item.Balance,
+			Concurrency: item.Concurrency,
+			Priority:    item.Priority,
+		})
+	}
+	return out
+}
+
+func fromDTOLDAPGroupMappings(in []dto.LDAPGroupMapping) []service.LDAPGroupMapping {
+	out := make([]service.LDAPGroupMapping, 0, len(in))
+	for _, item := range in {
+		out = append(out, service.LDAPGroupMapping{
+			LDAPGroupDN: strings.TrimSpace(item.LDAPGroupDN),
+			TargetRole:  strings.TrimSpace(item.TargetRole),
+			Balance:     item.Balance,
+			Concurrency: item.Concurrency,
+			Priority:    item.Priority,
+		})
+	}
+	return out
+}
+
 // TestSMTPRequest 测试SMTP连接请求
 type TestSMTPRequest struct {
 	SMTPHost     string `json:"smtp_host"`
@@ -2250,6 +2443,40 @@ func (h *SettingHandler) SendTestEmail(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "Test email sent successfully"})
+}
+
+// TestLDAPConnection 测试 LDAP 连接
+// POST /api/v1/admin/settings/ldap/test
+func (h *SettingHandler) TestLDAPConnection(c *gin.Context) {
+	if h.externalAuth == nil {
+		response.Error(c, 503, "Auth service not available")
+		return
+	}
+
+	err := h.externalAuth.TestConnection(c.Request.Context())
+	if err != nil {
+		response.Error(c, 400, "LDAP 连接测试失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{"message": "LDAP 连接测试成功"})
+}
+
+// SyncLDAPUsersNow 立即触发 LDAP 用户同步
+// POST /api/v1/admin/settings/ldap/sync
+func (h *SettingHandler) SyncLDAPUsersNow(c *gin.Context) {
+	if h.externalAuth == nil {
+		response.Error(c, 503, "Auth service not available")
+		return
+	}
+
+	result, err := h.externalAuth.SyncNow(c.Request.Context())
+	if err != nil {
+		response.Error(c, 500, "LDAP 同步失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, result)
 }
 
 // GetAdminAPIKey 获取管理员 API Key 状态
