@@ -280,7 +280,7 @@ type SendVerifyCodeResult struct {
 }
 
 // SendVerifyCode 发送邮箱验证码（同步方式）
-func (s *AuthService) SendVerifyCode(ctx context.Context, email string) error {
+func (s *AuthService) SendVerifyCode(ctx context.Context, email string, locale ...string) error {
 	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
 		return ErrRegDisabled
 	}
@@ -318,11 +318,11 @@ func (s *AuthService) SendVerifyCode(ctx context.Context, email string) error {
 		siteName = s.settingService.GetSiteName(ctx)
 	}
 
-	return s.emailService.SendVerifyCode(ctx, email, siteName)
+	return s.emailService.SendVerifyCode(ctx, email, siteName, firstEmailLocale(locale))
 }
 
 // SendVerifyCodeAsync 异步发送邮箱验证码并返回倒计时
-func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string) (*SendVerifyCodeResult, error) {
+func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string, locale ...string) (*SendVerifyCodeResult, error) {
 	logger.LegacyPrintf("service.auth", "[Auth] SendVerifyCodeAsync called for email: %s", email)
 
 	if s.settingService != nil && s.settingService.IsLDAPEnabled(ctx) {
@@ -368,7 +368,7 @@ func (s *AuthService) SendVerifyCodeAsync(ctx context.Context, email string) (*S
 
 	// 异步发送
 	logger.LegacyPrintf("service.auth", "[Auth] Enqueueing verify code for: %s", email)
-	if err := s.emailQueueService.EnqueueVerifyCode(email, siteName); err != nil {
+	if err := s.emailQueueService.EnqueueVerifyCode(email, siteName, firstEmailLocale(locale)); err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to enqueue: %v", err)
 		return nil, fmt.Errorf("enqueue verify code: %w", err)
 	}
@@ -1306,7 +1306,7 @@ func (s *AuthService) preparePasswordReset(ctx context.Context, email, frontendB
 
 // RequestPasswordReset 请求密码重置（同步发送）
 // Security: Returns the same response regardless of whether the email exists (prevent user enumeration)
-func (s *AuthService) RequestPasswordReset(ctx context.Context, email, frontendBaseURL string) error {
+func (s *AuthService) RequestPasswordReset(ctx context.Context, email, frontendBaseURL string, locale ...string) error {
 	if !s.IsPasswordResetEnabled(ctx) {
 		return infraerrors.Forbidden("PASSWORD_RESET_DISABLED", "password reset is not enabled")
 	}
@@ -1319,7 +1319,7 @@ func (s *AuthService) RequestPasswordReset(ctx context.Context, email, frontendB
 		return nil // Silent success to prevent enumeration
 	}
 
-	if err := s.emailService.SendPasswordResetEmail(ctx, email, siteName, resetURL); err != nil {
+	if err := s.emailService.SendPasswordResetEmail(ctx, email, siteName, resetURL, firstEmailLocale(locale)); err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to send password reset email to %s: %v", email, err)
 		return nil // Silent success to prevent enumeration
 	}
@@ -1330,7 +1330,7 @@ func (s *AuthService) RequestPasswordReset(ctx context.Context, email, frontendB
 
 // RequestPasswordResetAsync 异步请求密码重置（队列发送）
 // Security: Returns the same response regardless of whether the email exists (prevent user enumeration)
-func (s *AuthService) RequestPasswordResetAsync(ctx context.Context, email, frontendBaseURL string) error {
+func (s *AuthService) RequestPasswordResetAsync(ctx context.Context, email, frontendBaseURL string, locale ...string) error {
 	if !s.IsPasswordResetEnabled(ctx) {
 		return infraerrors.Forbidden("PASSWORD_RESET_DISABLED", "password reset is not enabled")
 	}
@@ -1343,7 +1343,7 @@ func (s *AuthService) RequestPasswordResetAsync(ctx context.Context, email, fron
 		return nil // Silent success to prevent enumeration
 	}
 
-	if err := s.emailQueueService.EnqueuePasswordReset(email, siteName, resetURL); err != nil {
+	if err := s.emailQueueService.EnqueuePasswordReset(email, siteName, resetURL, firstEmailLocale(locale)); err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to enqueue password reset email for %s: %v", email, err)
 		return nil // Silent success to prevent enumeration
 	}

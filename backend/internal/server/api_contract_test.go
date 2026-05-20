@@ -834,6 +834,7 @@ func TestAPIContracts(t *testing.T) {
 					"payment_visible_method_alipay_enabled": true,
 					"payment_visible_method_wxpay_enabled": false,
 					"openai_advanced_scheduler_enabled": true,
+					"openai_codex_user_agent":           "",
 					"openai_fast_policy_settings": {
 						"rules": []
 					},
@@ -1079,6 +1080,7 @@ func TestAPIContracts(t *testing.T) {
 					"payment_visible_method_alipay_enabled": false,
 					"payment_visible_method_wxpay_enabled": false,
 					"openai_advanced_scheduler_enabled": false,
+					"openai_codex_user_agent":           "",
 					"openai_fast_policy_settings": {
 						"rules": []
 					},

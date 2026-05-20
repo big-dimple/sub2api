@@ -69,6 +69,13 @@ const AUTH_SOURCE_TYPES: AuthSourceType[] = [
 ];
 const AUTH_SOURCE_DEFAULT_BALANCE = 0;
 const AUTH_SOURCE_DEFAULT_CONCURRENCY = 5;
+const DEFAULT_AUTH_SOURCE_DEFAULTS: AuthSourceDefaultsValue = {
+  balance: AUTH_SOURCE_DEFAULT_BALANCE,
+  concurrency: AUTH_SOURCE_DEFAULT_CONCURRENCY,
+  subscriptions: [],
+  grant_on_signup: false,
+  grant_on_first_bind: false,
+};
 const PAYMENT_VISIBLE_METHOD_SOURCE_OPTIONS: Record<
   PaymentVisibleMethod,
   PaymentVisibleMethodSourceOption[]
@@ -205,7 +212,7 @@ export function appendAuthSourceDefaultsToUpdateRequest(
   const target = payload as Record<string, unknown>;
 
   for (const source of AUTH_SOURCE_TYPES) {
-    const current = authSourceDefaults[source];
+    const current = authSourceDefaults[source] ?? DEFAULT_AUTH_SOURCE_DEFAULTS;
     target[`auth_source_default_${source}_balance`] =
       Number(current.balance) || 0;
     target[`auth_source_default_${source}_concurrency`] = Math.max(
@@ -534,6 +541,7 @@ export interface SystemSettings {
   enable_anthropic_cache_ttl_1h_injection: boolean;
   rewrite_message_cache_control: boolean;
   antigravity_user_agent_version: string;
+  openai_codex_user_agent: string;
   web_search_emulation_enabled?: boolean;
 
   // Payment configuration
@@ -774,6 +782,7 @@ export interface UpdateSettingsRequest {
   enable_anthropic_cache_ttl_1h_injection?: boolean;
   rewrite_message_cache_control?: boolean;
   antigravity_user_agent_version?: string;
+  openai_codex_user_agent?: string;
   // Payment configuration
   payment_enabled?: boolean;
   risk_control_enabled?: boolean;
@@ -897,6 +906,105 @@ export async function sendTestEmail(
 ): Promise<{ message: string }> {
   const { data } = await apiClient.post<{ message: string }>(
     "/admin/settings/send-test-email",
+    request,
+  );
+  return data;
+}
+
+// ==================== Email Template Settings ====================
+
+export interface EmailTemplateOption {
+  value: string;
+  label?: string;
+  description?: string;
+}
+
+export type EmailTemplateEventOption = string | EmailTemplateOption;
+
+export interface EmailTemplateSummary {
+  event: string;
+  locale: string;
+  subject: string;
+  is_custom?: boolean;
+  updated_at?: string;
+}
+
+export interface EmailTemplateListResponse {
+  events: EmailTemplateEventOption[];
+  locales: string[];
+  templates?: EmailTemplateSummary[];
+  placeholders?: string[];
+}
+
+export interface EmailTemplateDetail {
+  event: string;
+  locale: string;
+  subject: string;
+  html: string;
+  is_custom?: boolean;
+  updated_at?: string;
+  placeholders?: string[];
+}
+
+export interface UpdateEmailTemplateRequest {
+  subject: string;
+  html: string;
+}
+
+export interface PreviewEmailTemplateRequest extends UpdateEmailTemplateRequest {
+  event: string;
+  locale: string;
+}
+
+export interface EmailTemplatePreviewResponse {
+  subject: string;
+  html: string;
+}
+
+export async function getEmailTemplates(): Promise<EmailTemplateListResponse> {
+  const { data } = await apiClient.get<EmailTemplateListResponse>(
+    "/admin/settings/email-templates",
+  );
+  return data;
+}
+
+export async function getEmailTemplate(
+  event: string,
+  locale: string,
+): Promise<EmailTemplateDetail> {
+  const { data } = await apiClient.get<EmailTemplateDetail>(
+    `/admin/settings/email-templates/${encodeURIComponent(event)}/${encodeURIComponent(locale)}`,
+  );
+  return data;
+}
+
+export async function updateEmailTemplate(
+  event: string,
+  locale: string,
+  request: UpdateEmailTemplateRequest,
+): Promise<EmailTemplateDetail> {
+  const { data } = await apiClient.put<EmailTemplateDetail>(
+    `/admin/settings/email-templates/${encodeURIComponent(event)}/${encodeURIComponent(locale)}`,
+    request,
+  );
+  return data;
+}
+
+export async function restoreOfficialEmailTemplate(
+  event: string,
+  locale: string,
+): Promise<EmailTemplateDetail> {
+  const { data } = await apiClient.post<EmailTemplateDetail>(
+    `/admin/settings/email-templates/${encodeURIComponent(event)}/${encodeURIComponent(locale)}/restore-official`,
+  );
+  return data;
+}
+
+export async function previewEmailTemplate(
+  request: PreviewEmailTemplateRequest,
+): Promise<EmailTemplatePreviewResponse> {
+  const { data } = await apiClient.post<EmailTemplatePreviewResponse>(
+    "/admin/settings/email-template-preview",
     request,
   );
   return data;
@@ -1208,6 +1316,11 @@ export const settingsAPI = {
   updateSettings,
   testSmtpConnection,
   sendTestEmail,
+  getEmailTemplates,
+  getEmailTemplate,
+  updateEmailTemplate,
+  restoreOfficialEmailTemplate,
+  previewEmailTemplate,
   getAdminApiKey,
   regenerateAdminApiKey,
   deleteAdminApiKey,

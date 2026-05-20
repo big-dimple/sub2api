@@ -18,11 +18,11 @@ func ProvideExternalAuthProvider(
 ) (ExternalAuthProvider, func()) {
 	provider := NewLDAPProvider(userRepo, ldapUserRepo, settingService, cfg, refreshTokenCache)
 	provider.Start()
-	
+
 	cleanup := func() {
 		provider.Stop()
 	}
-	
+
 	return provider, cleanup
 }
 
