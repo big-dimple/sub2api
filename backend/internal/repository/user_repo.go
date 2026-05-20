@@ -35,6 +35,14 @@ func NewUserRepository(client *dbent.Client, sqlDB *sql.DB) *userRepository {
 }
 
 func newUserRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor) *userRepository {
+	// When the backing DB is SQLite (unit tests) the raw-SQL helpers use
+	// PostgreSQL-specific syntax (ANY, BIGINT columns added via migration,
+	// etc.) that SQLite does not support.  All raw-SQL helper functions
+	// already short-circuit when r.sql == nil, so setting it to nil here
+	// is safe and keeps unit tests simple and self-contained.
+	if isSQLite(sqlq) {
+		sqlq = nil
+	}
 	return &userRepository{client: client, sql: sqlq}
 }
 

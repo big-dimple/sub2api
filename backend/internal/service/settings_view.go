@@ -112,7 +112,6 @@ type SystemSettings struct {
 	OIDCConnectUserInfoIDPath         string
 	OIDCConnectUserInfoUsernamePath   string
 
-<<<<<<< HEAD
 	// GitHub / Google 邮箱快捷登录
 	GitHubOAuthEnabled                bool
 	GitHubOAuthClientID               string
@@ -126,7 +125,7 @@ type SystemSettings struct {
 	GoogleOAuthClientSecretConfigured bool
 	GoogleOAuthRedirectURL            string
 	GoogleOAuthFrontendRedirectURL    string
-=======
+
 	// LDAP/AD identity integration
 	LDAPEnabled                bool
 	LDAPHost                   string
@@ -149,7 +148,6 @@ type SystemSettings struct {
 	LDAPGroupMappings          []LDAPGroupMapping
 	LDAPSyncEnabled            bool
 	LDAPSyncIntervalMinutes    int
->>>>>>> feature/ldap-support
 
 	SiteName                    string
 	SiteLogo                    string

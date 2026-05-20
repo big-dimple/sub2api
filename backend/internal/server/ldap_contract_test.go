@@ -143,7 +143,7 @@ func TestLDAPLoginContract(t *testing.T) {
 	// 2. 初始化路由
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	authHandler := handler.NewAuthHandler(cfg, authService, nil, settingService, nil, nil, nil)
+	authHandler := handler.NewAuthHandler(cfg, authService, nil, settingService, nil, nil, nil, nil)
 
 	v1 := r.Group("/api/v1")
 	v1.POST("/auth/login", authHandler.Login)
