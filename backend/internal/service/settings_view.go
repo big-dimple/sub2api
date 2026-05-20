@@ -112,6 +112,7 @@ type SystemSettings struct {
 	OIDCConnectUserInfoIDPath         string
 	OIDCConnectUserInfoUsernamePath   string
 
+<<<<<<< HEAD
 	// GitHub / Google 邮箱快捷登录
 	GitHubOAuthEnabled                bool
 	GitHubOAuthClientID               string
@@ -125,6 +126,30 @@ type SystemSettings struct {
 	GoogleOAuthClientSecretConfigured bool
 	GoogleOAuthRedirectURL            string
 	GoogleOAuthFrontendRedirectURL    string
+=======
+	// LDAP/AD identity integration
+	LDAPEnabled                bool
+	LDAPHost                   string
+	LDAPPort                   int
+	LDAPUseTLS                 bool
+	LDAPStartTLS               bool
+	LDAPInsecureSkipVerify     bool
+	LDAPBindDN                 string
+	LDAPBindPassword           string
+	LDAPBindPasswordConfigured bool
+	LDAPUserBaseDN             string
+	LDAPUserFilter             string
+	LDAPLoginAttr              string
+	LDAPUIDAttr                string
+	LDAPEmailAttr              string
+	LDAPDisplayNameAttr        string
+	LDAPDepartmentAttr         string
+	LDAPGroupAttr              string
+	LDAPAllowedGroupDNs        []string
+	LDAPGroupMappings          []LDAPGroupMapping
+	LDAPSyncEnabled            bool
+	LDAPSyncIntervalMinutes    int
+>>>>>>> feature/ldap-support
 
 	SiteName                    string
 	SiteLogo                    string
@@ -261,6 +286,7 @@ type PublicSettings struct {
 	WeChatOAuthMobileEnabled bool
 	BackendModeEnabled       bool
 	PaymentEnabled           bool
+	LDAPEnabled              bool
 	OIDCOAuthEnabled         bool
 	OIDCOAuthProviderName    string
 	GitHubOAuthEnabled       bool

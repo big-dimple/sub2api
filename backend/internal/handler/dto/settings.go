@@ -23,6 +23,14 @@ type CustomEndpoint struct {
 	Description string `json:"description"`
 }
 
+type LDAPGroupMapping struct {
+	LDAPGroupDN string  `json:"ldap_group_dn"`
+	TargetRole   string  `json:"target_role"`
+	Balance      float64 `json:"balance"`
+	Concurrency  int     `json:"concurrency"`
+	Priority     int     `json:"priority"`
+}
+
 // SystemSettings represents the admin settings API response payload.
 type SystemSettings struct {
 	RegistrationEnabled              bool                     `json:"registration_enabled"`
@@ -113,6 +121,7 @@ type SystemSettings struct {
 	OIDCConnectUserInfoIDPath         string `json:"oidc_connect_userinfo_id_path"`
 	OIDCConnectUserInfoUsernamePath   string `json:"oidc_connect_userinfo_username_path"`
 
+<<<<<<< HEAD
 	GitHubOAuthEnabled                bool   `json:"github_oauth_enabled"`
 	GitHubOAuthClientID               string `json:"github_oauth_client_id"`
 	GitHubOAuthClientSecretConfigured bool   `json:"github_oauth_client_secret_configured"`
@@ -123,6 +132,28 @@ type SystemSettings struct {
 	GoogleOAuthClientSecretConfigured bool   `json:"google_oauth_client_secret_configured"`
 	GoogleOAuthRedirectURL            string `json:"google_oauth_redirect_url"`
 	GoogleOAuthFrontendRedirectURL    string `json:"google_oauth_frontend_redirect_url"`
+=======
+	LDAPEnabled                bool               `json:"ldap_enabled"`
+	LDAPHost                   string             `json:"ldap_host"`
+	LDAPPort                   int                `json:"ldap_port"`
+	LDAPUseTLS                 bool               `json:"ldap_use_tls"`
+	LDAPStartTLS               bool               `json:"ldap_start_tls"`
+	LDAPInsecureSkipVerify     bool               `json:"ldap_insecure_skip_verify"`
+	LDAPBindDN                 string             `json:"ldap_bind_dn"`
+	LDAPBindPasswordConfigured bool               `json:"ldap_bind_password_configured"`
+	LDAPUserBaseDN             string             `json:"ldap_user_base_dn"`
+	LDAPUserFilter             string             `json:"ldap_user_filter"`
+	LDAPLoginAttr              string             `json:"ldap_login_attr"`
+	LDAPUIDAttr                string             `json:"ldap_uid_attr"`
+	LDAPEmailAttr              string             `json:"ldap_email_attr"`
+	LDAPDisplayNameAttr        string             `json:"ldap_display_name_attr"`
+	LDAPDepartmentAttr         string             `json:"ldap_department_attr"`
+	LDAPGroupAttr              string             `json:"ldap_group_attr"`
+	LDAPAllowedGroupDNs        []string           `json:"ldap_allowed_group_dns"`
+	LDAPGroupMappings          []LDAPGroupMapping `json:"ldap_group_mappings"`
+	LDAPSyncEnabled            bool               `json:"ldap_sync_enabled"`
+	LDAPSyncIntervalMinutes    int                `json:"ldap_sync_interval_minutes"`
+>>>>>>> feature/ldap-support
 
 	SiteName                    string           `json:"site_name"`
 	SiteLogo                    string           `json:"site_logo"`
@@ -251,6 +282,7 @@ type DefaultSubscriptionSetting struct {
 }
 
 type PublicSettings struct {
+<<<<<<< HEAD
 	RegistrationEnabled              bool                     `json:"registration_enabled"`
 	EmailVerifyEnabled               bool                     `json:"email_verify_enabled"`
 	ForceEmailOnThirdPartySignup     bool                     `json:"force_email_on_third_party_signup"`
@@ -298,6 +330,48 @@ type PublicSettings struct {
 	AccountQuotaNotifyEnabled        bool                     `json:"account_quota_notify_enabled"`
 	BalanceLowNotifyThreshold        float64                  `json:"balance_low_notify_threshold"`
 	BalanceLowNotifyRechargeURL      string                   `json:"balance_low_notify_recharge_url"`
+=======
+	RegistrationEnabled              bool             `json:"registration_enabled"`
+	EmailVerifyEnabled               bool             `json:"email_verify_enabled"`
+	ForceEmailOnThirdPartySignup     bool             `json:"force_email_on_third_party_signup"`
+	RegistrationEmailSuffixWhitelist []string         `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                 bool             `json:"promo_code_enabled"`
+	PasswordResetEnabled             bool             `json:"password_reset_enabled"`
+	InvitationCodeEnabled            bool             `json:"invitation_code_enabled"`
+	TotpEnabled                      bool             `json:"totp_enabled"` // TOTP 双因素认证
+	TurnstileEnabled                 bool             `json:"turnstile_enabled"`
+	TurnstileSiteKey                 string           `json:"turnstile_site_key"`
+	SiteName                         string           `json:"site_name"`
+	SiteLogo                         string           `json:"site_logo"`
+	SiteSubtitle                     string           `json:"site_subtitle"`
+	APIBaseURL                       string           `json:"api_base_url"`
+	ContactInfo                      string           `json:"contact_info"`
+	DocURL                           string           `json:"doc_url"`
+	HomeContent                      string           `json:"home_content"`
+	HideCcsImportButton              bool             `json:"hide_ccs_import_button"`
+	PurchaseSubscriptionEnabled      bool             `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL          string           `json:"purchase_subscription_url"`
+	TableDefaultPageSize             int              `json:"table_default_page_size"`
+	TablePageSizeOptions             []int            `json:"table_page_size_options"`
+	CustomMenuItems                  []CustomMenuItem `json:"custom_menu_items"`
+	CustomEndpoints                  []CustomEndpoint `json:"custom_endpoints"`
+	LinuxDoOAuthEnabled              bool             `json:"linuxdo_oauth_enabled"`
+	WeChatOAuthEnabled               bool             `json:"wechat_oauth_enabled"`
+	WeChatOAuthOpenEnabled           bool             `json:"wechat_oauth_open_enabled"`
+	WeChatOAuthMPEnabled             bool             `json:"wechat_oauth_mp_enabled"`
+	WeChatOAuthMobileEnabled         bool             `json:"wechat_oauth_mobile_enabled"`
+	OIDCOAuthEnabled                 bool             `json:"oidc_oauth_enabled"`
+	OIDCOAuthProviderName            string           `json:"oidc_oauth_provider_name"`
+	SoraClientEnabled                bool             `json:"sora_client_enabled"`
+	BackendModeEnabled               bool             `json:"backend_mode_enabled"`
+	PaymentEnabled                   bool             `json:"payment_enabled"`
+	LDAPEnabled                      bool             `json:"ldap_enabled"`
+	Version                          string           `json:"version"`
+	BalanceLowNotifyEnabled          bool             `json:"balance_low_notify_enabled"`
+	AccountQuotaNotifyEnabled        bool             `json:"account_quota_notify_enabled"`
+	BalanceLowNotifyThreshold        float64          `json:"balance_low_notify_threshold"`
+	BalanceLowNotifyRechargeURL      string           `json:"balance_low_notify_recharge_url"`
+>>>>>>> feature/ldap-support
 
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
